@@ -21,6 +21,13 @@ const body = document.body;
 
 const captions = new Captions(captionsEl, captionTextEl);
 
+function resolveImageSrc(image: string): string {
+    if (image.startsWith('http')) {
+        return image;
+    }
+    return new URL(image, location.origin).href;
+}
+
 function finishLoading(): void {
     body.classList.remove('loading');
     loadingEl.classList.add('hidden');
@@ -28,12 +35,17 @@ function finishLoading(): void {
 
 async function main(): Promise<void> {
     const config: AppConfig = await window.api.getConfig();
-    if (config.image.startsWith('http')) {
-        img.src = config.image;
-    } else {
-        const imageUrl = new URL(config.image, location.origin);
-        img.src = imageUrl.href;
-    }
+    img.src = resolveImageSrc(config.image);
+    window.api.onAvatarChanged((image) => {
+        img.src = resolveImageSrc(image);
+    });
+
+    const settingsBtn = document.getElementById(
+        'settings-btn',
+    ) as HTMLButtonElement;
+    settingsBtn.addEventListener('click', () => {
+        window.api.openSettings();
+    });
 
     const toast = new Toast(toastEl);
     window.api.onToast((msg) => {
@@ -95,7 +107,7 @@ async function main(): Promise<void> {
     function syncMicState(): void {
         const listening = vad.isListening;
         micBtn.classList.toggle('live', listening);
-        micBtn.title = listening ? 'クリックでミュート' : 'クリックでマイクをオン';
+        micBtn.title = listening ? 'Click to mute' : 'Click to turn on mic';
     }
 
     micBtn.addEventListener('pointerdown', (e) => {

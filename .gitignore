@@ -2,4 +2,7 @@ node_modules/
 dist/
 models/
 vendor/
+# Character voice data (reference audio + TTS voice configs) — not committed.
+characters/*/*.wav
+characters/*/voices.json
 .editorconfig

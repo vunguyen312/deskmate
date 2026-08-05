@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>voice-box Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <main>
+    <h1>Settings</h1>
+
+    <nav class="tabs">
+      <button id="tab-btn-characters" class="tab active" type="button">Characters</button>
+      <button id="tab-btn-voice" class="tab" type="button">Voice &amp; LLM</button>
+    </nav>
+
+    <section id="panel-characters" class="tab-panel">
+      <div id="character-list" class="character-list"></div>
+      <div class="folder-row">
+        <button id="open-folder" type="button">Open folder</button>
+        <p class="hint">Drop any character folder (with character.json + voices.json) here — the list refreshes when this window regains focus.</p>
+      </div>
+      <div class="status-row">
+        <span id="status-characters" role="status"></span>
+      </div>
+    </section>
+
+    <section id="panel-voice" class="tab-panel hidden">
+      <section>
+        <label for="language-dd">Language (TTS &amp; STT)</label>
+        <div id="language-dd"></div>
+        <p class="hint">Applies to both speech recognition and speech synthesis, for every character.</p>
+      </section>
+
+      <section>
+        <label for="tts-model-dd">TTS model</label>
+        <div id="tts-model-dd"></div>
+        <p class="hint">Changing this restarts the TTS server (~60s).</p>
+      </section>
+
+      <div class="actions">
+        <span id="status-voice" role="status"></span>
+        <button id="save" type="button">Save</button>
+      </div>
+    </section>
+  </main>
+  <script src="/dist/settings-bundle.js"></script>
+</body>
+</html>

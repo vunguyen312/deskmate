@@ -80,6 +80,23 @@ export abstract class ChildService {
         this.child = null;
     }
 
+    /**
+     * Stop the service, wait for the port to actually free up (the old
+     * process may take a moment to die), then start it again with the
+     * current configuration. Used by settings changes that need a respawn.
+     */
+    public async restart(): Promise<void> {
+        this.stop();
+        for (let i = 0; i < 45; i++) {
+            const state = await this.probe();
+            if (state === 'down') {
+                break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        await this.ensureStarted();
+    }
+
     private spawn(spec: SpawnSpec): void {
         this.spawnAttempted = true;
         let child: ChildProcess;

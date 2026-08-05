@@ -29,9 +29,100 @@ export interface SttConfig {
 export interface TtsConfig {
     url: string;
     voice: string;
+    /** Path (relative to the app dir) to the character's voices.json, used when spawning the TTS server. */
+    voicesFile: string;
     responseFormat: 'pcm' | 'wav';
     sampleRate: number;
     spawn: boolean;
+    /** Language name passed to the TTS server, e.g. 'Japanese'. */
+    language: string;
+    /** HuggingFace model id used when spawning the TTS server. */
+    model: string;
+}
+
+/** One entry of the shared TTS/STT language selector. */
+export interface LanguageOption {
+    label: string;
+    /** whisper.cpp language code (also the config id), e.g. 'ja'. */
+    stt: string;
+    /** Qwen3-TTS language name, e.g. 'Japanese'. */
+    tts: string;
+}
+
+export const LANGUAGE_OPTIONS: readonly LanguageOption[] = [
+    { label: 'Japanese', stt: 'ja', tts: 'Japanese' },
+    { label: 'English', stt: 'en', tts: 'English' },
+    { label: 'Chinese', stt: 'zh', tts: 'Chinese' },
+    { label: 'French', stt: 'fr', tts: 'French' },
+    { label: 'German', stt: 'de', tts: 'German' },
+    { label: 'Spanish', stt: 'es', tts: 'Spanish' },
+    { label: 'Auto', stt: 'auto', tts: 'Auto' },
+];
+
+export interface TtsModelOption {
+    id: string;
+    label: string;
+}
+
+export const TTS_MODEL_OPTIONS: readonly TtsModelOption[] = [
+    {
+        id: 'Qwen/Qwen3-TTS-12Hz-1.7B-Base',
+        label: 'Qwen3-TTS 1.7B',
+    },
+    {
+        id: 'Qwen/Qwen3-TTS-12Hz-0.6B-Base',
+        label: 'Qwen3-TTS 0.6B',
+    },
+];
+
+/**
+ * A character folder (`characters/<id>/`): persona and LLM overrides.
+ * The TTS voice is whatever the folder's `voices.json` declares (first voice
+ * wins). Language and the TTS model are app-level settings in `config.json`
+ * and are never touched by a character.
+ */
+export interface CharacterInfo {
+    /** Folder name under characters/. */
+    id: string;
+    /** Display name for the settings UI. */
+    name: string;
+    description?: string;
+    /** Avatar path relative to the character folder. */
+    image: string;
+    systemPrompt?: string;
+    /** LLM model + generation knobs; overrides the matching `config.json` fields. */
+    llm?: Partial<LlmConfig>;
+}
+
+export interface SettingsPatch {
+    /** STT language code from LANGUAGE_OPTIONS, e.g. 'ja'. */
+    language: string;
+    /** HF model id from TTS_MODEL_OPTIONS. */
+    ttsModel: string;
+}
+
+export interface SaveSettingsResult {
+    ok: true;
+    /** True when the TTS server was restarted for a model change. */
+    ttsRestarting: boolean;
+}
+
+/** Character as shown in the settings tab. */
+export interface CharacterSummary {
+    id: string;
+    name: string;
+    description?: string;
+    /** App-relative path (or http URL) for the avatar. */
+    image: string;
+    active: boolean;
+}
+
+export interface SelectCharacterResult {
+    ok: true;
+    /** True when the TTS server was restarted (voice change). */
+    ttsRestarting: boolean;
+    /** True when llama-server was restarted (LLM model change). */
+    llmRestarting: boolean;
 }
 
 export interface VadConfig {
@@ -49,6 +140,8 @@ export interface DebugConfig {
 }
 
 export interface AppConfig {
+    /** Active character id (a folder under characters/). */
+    character: string;
     llm: LlmConfig;
     stt: SttConfig;
     tts: TtsConfig;
@@ -72,6 +165,12 @@ export const CHANNELS = {
     quit: 'quit',
     appReady: 'app-ready',
     appReadyQuery: 'app-ready-query',
+    openSettings: 'open-settings',
+    saveSettings: 'save-settings',
+    openCharactersFolder: 'open-characters-folder',
+    listCharacters: 'list-characters',
+    selectCharacter: 'select-character',
+    avatarChanged: 'avatar-changed',
 } as const;
 
 export interface VoiceBoxApi {
@@ -88,4 +187,10 @@ export interface VoiceBoxApi {
     quit(): void;
     onAppReady(cb: () => void): void;
     isAppReady(): Promise<boolean>;
+    openSettings(): void;
+    openCharactersFolder(): void;
+    saveSettings(patch: SettingsPatch): Promise<SaveSettingsResult>;
+    listCharacters(): Promise<CharacterSummary[]>;
+    selectCharacter(id: string): Promise<SelectCharacterResult>;
+    onAvatarChanged(cb: (image: string) => void): void;
 }

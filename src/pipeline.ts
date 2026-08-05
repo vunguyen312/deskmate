@@ -69,7 +69,7 @@ export class ConversationPipeline {
             } else if (err instanceof ServiceError && err.kind === 'llm') {
                 msg = `LLM error (${reason}). Check that llama-server is running and the model file exists in voice-box/models/.`;
             } else if (err instanceof ServiceError && err.kind === 'tts') {
-                msg = `TTS error (${reason}). Start it: python server/openai_server.py --voices momo/voices.json --language Japanese --port ${TTS_DEFAULT_PORT}`;
+                msg = `TTS error (${reason}). Start it: python voice/server/openai_server.py --voices ${config.tts.voicesFile} --language ${config.tts.language} --port ${TTS_DEFAULT_PORT}`;
             } else {
                 msg = `Pipeline error: ${reason}`;
             }

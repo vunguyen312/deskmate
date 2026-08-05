@@ -1,4 +1,5 @@
 {
+  "character": "momo",
   "llm": {
     "baseUrl": "http://127.0.0.1:8081",
     "model": "unsloth/Qwen3.5-2B-GGUF:Q4_K_S",
@@ -14,20 +15,23 @@
   "stt": {
     "url": "http://127.0.0.1:8002",
     "model": "small",
-    "language": "ja"
+    "language": "en"
   },
   "tts": {
     "url": "http://127.0.0.1:8001",
     "voice": "momo",
+    "voicesFile": "characters/momo/voices.json",
     "responseFormat": "pcm",
     "sampleRate": 24000,
-    "spawn": true
+    "spawn": true,
+    "language": "English",
+    "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
   },
   "vad": {
     "threshold": 0.5,
     "minSilenceFrames": 12
   },
-  "image": "assets/momo.png",
+  "image": "characters/momo/momo.png",
   "window": {
     "width": 300,
     "height": 300

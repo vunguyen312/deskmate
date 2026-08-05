@@ -53,6 +53,26 @@ const api: VoiceBoxApi = {
     quit: () => {
         ipcRenderer.send(CHANNELS.quit);
     },
+    openSettings: () => {
+        ipcRenderer.send(CHANNELS.openSettings);
+    },
+    openCharactersFolder: () => {
+        ipcRenderer.send(CHANNELS.openCharactersFolder);
+    },
+    saveSettings: (patch) => {
+        return ipcRenderer.invoke(CHANNELS.saveSettings, patch);
+    },
+    listCharacters: () => {
+        return ipcRenderer.invoke(CHANNELS.listCharacters);
+    },
+    selectCharacter: (id) => {
+        return ipcRenderer.invoke(CHANNELS.selectCharacter, id);
+    },
+    onAvatarChanged: (cb) => {
+        ipcRenderer.on(CHANNELS.avatarChanged, (_e, image: string) => {
+            cb(image);
+        });
+    },
 };
 
 contextBridge.exposeInMainWorld('api', api);

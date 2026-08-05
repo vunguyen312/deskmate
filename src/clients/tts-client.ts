@@ -65,6 +65,7 @@ export class TtsClient {
                 input: text,
                 voice: this.config.voice,
                 response_format: responseFormat,
+                language: this.config.language,
             }),
             signal,
         };

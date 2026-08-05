@@ -1,6 +1,6 @@
 import type { ChildProcess } from 'node:child_process';
 import type { TtsConfig } from '../../shared/contract';
-import { PYTHON_ROOT, VENV_PYTHON } from '../utils/paths';
+import { APP_DIR, VENV_PYTHON } from '../utils/paths';
 import { servicePort } from '../utils/urls';
 import {
     ChildService,
@@ -17,7 +17,7 @@ export class TtsService extends ChildService {
         private readonly config: TtsConfig,
         toast: (msg: string) => void,
     ) {
-        super('tts', PYTHON_ROOT, toast, config.spawn);
+        super('tts', APP_DIR, toast, config.spawn);
     }
 
     protected async probe(): Promise<ProbeState> {
@@ -44,11 +44,13 @@ export class TtsService extends ChildService {
         return {
             command: VENV_PYTHON,
             args: [
-                'server/openai_server.py',
+                'voice/server/openai_server.py',
+                '--model',
+                this.config.model,
                 '--voices',
-                'momo/voices.json',
+                this.config.voicesFile,
                 '--language',
-                'Japanese',
+                this.config.language,
                 '--port',
                 String(port),
             ],
@@ -73,7 +75,7 @@ export class TtsService extends ChildService {
     }
 
     protected manualStartMessage(): string {
-        return `TTS server not running at ${this.config.url} (auto-spawn disabled). Start it: python server/openai_server.py --voices momo/voices.json --language Japanese --port ${TTS_DEFAULT_PORT}`;
+        return `TTS server not running at ${this.config.url} (auto-spawn disabled). Start it: python voice/server/openai_server.py --model ${this.config.model} --voices ${this.config.voicesFile} --language ${this.config.language} --port ${TTS_DEFAULT_PORT}`;
     }
 
     protected spawnFailedMessage(err: Error): string {

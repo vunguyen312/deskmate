@@ -28,6 +28,9 @@ Voices config (voices.json):
         "echo":  {"ref_audio": "voice2.wav", "ref_text": "...", "language": "English"}
     }
 
+    Relative `ref_audio` paths are resolved against the voices.json file's
+    directory, so a voices.json can be moved around with its audio files.
+
 API usage:
     curl -s http://localhost:8000/v1/audio/speech \\
         -H "Content-Type: application/json" \\
@@ -81,6 +84,7 @@ class SpeechRequest(BaseModel):
     voice: str = "alloy"
     response_format: str = "wav"  # wav | pcm | mp3
     speed: float = 1.0           # accepted but not yet applied
+    language: Optional[str] = None  # overrides the voice's configured language
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +147,18 @@ def _to_mp3_bytes(pcm: np.ndarray, sample_rate: int) -> bytes:
 # ---------------------------------------------------------------------------
 
 
+def _load_voices_file(voices_path: str) -> dict:
+    """Load a voices.json; resolve relative ref_audio against its directory."""
+    with open(voices_path) as f:
+        voices = json.load(f)
+    voices_dir = os.path.dirname(os.path.abspath(voices_path))
+    for cfg in voices.values():
+        ref = cfg.get("ref_audio")
+        if ref and not os.path.isabs(ref):
+            cfg["ref_audio"] = os.path.join(voices_dir, ref)
+    return voices
+
+
 def resolve_voice(voice_name: str) -> dict:
     """Return voice config dict or fall back to default, else raise 400."""
     if voice_name in voices:
@@ -163,12 +179,19 @@ def resolve_voice(voice_name: str) -> dict:
     )
 
 
+def _resolve_language(req_language: Optional[str], voice_cfg: dict) -> str:
+    """Request-level language wins over the voice config, then Auto."""
+    return req_language or voice_cfg.get("language") or "Auto"
+
+
 # ---------------------------------------------------------------------------
 # Streaming helper: run sync generator in a background thread
 # ---------------------------------------------------------------------------
 
 
-async def _stream_chunks(voice_cfg: dict, text: str) -> AsyncGenerator[bytes, None]:
+async def _stream_chunks(
+    voice_cfg: dict, text: str, language: str
+) -> AsyncGenerator[bytes, None]:
     """
     Run generate_voice_clone_streaming in a background thread and yield
     raw PCM bytes for each chunk as they arrive.
@@ -181,7 +204,7 @@ async def _stream_chunks(voice_cfg: dict, text: str) -> AsyncGenerator[bytes, No
             with _model_lock:
                 for chunk, _sr, _timing in tts_model.generate_voice_clone_streaming(
                     text=text,
-                    language=voice_cfg.get("language", "Auto"),
+                    language=language,
                     ref_audio=voice_cfg["ref_audio"],
                     ref_text=voice_cfg.get("ref_text", ""),
                     chunk_size=voice_cfg.get("chunk_size", 12),
@@ -246,7 +269,7 @@ async def create_speech(req: SpeechRequest):
             with _model_lock:
                 return tts_model.generate_voice_clone(
                     text=req.input,
-                    language=voice_cfg.get("language", "Auto"),
+                    language=_resolve_language(req.language, voice_cfg),
                     ref_audio=voice_cfg["ref_audio"],
                     ref_text=voice_cfg.get("ref_text", ""),
                 )
@@ -259,7 +282,9 @@ async def create_speech(req: SpeechRequest):
     async def audio_stream():
         if fmt == "wav":
             yield _wav_header(SAMPLE_RATE)  # stream with unknown data length
-        async for raw_chunk in _stream_chunks(voice_cfg, req.input):
+        async for raw_chunk in _stream_chunks(
+            voice_cfg, req.input, _resolve_language(req.language, voice_cfg)
+        ):
             yield raw_chunk
 
     return StreamingResponse(audio_stream(), media_type=content_type)
@@ -316,8 +341,7 @@ def main():
 
     # Build voice registry
     if args.voices:
-        with open(args.voices) as f:
-            voices = json.load(f)
+        voices = _load_voices_file(args.voices)
         default_voice = next(iter(voices))
         logger.info("Loaded %d voice(s) from %s", len(voices), args.voices)
     elif args.ref_audio:
