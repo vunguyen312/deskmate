@@ -23,9 +23,6 @@
     };
     window.__test = {
       ready: () => listeners.ready?.(),
-      speech: () => document.getElementById('captions').classList.add('waiting'),
-      stt: (t) => listeners.stt?.(t),
-      llm: (t) => listeners.llm?.(t),
       chunk: () => listeners.chunk?.(new Float32Array(1600).buffer),
       end: () => listeners.end?.(),
     };
@@ -43,10 +40,6 @@
     </svg>
   </button>
   <div id="loading"><div class="spinner"></div></div>
-  <div id="captions" aria-live="polite">
-    <span id="caption-text"></span>
-    <span id="caption-dots" class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
-  </div>
   <div id="toast"></div>
   <script src="/dist/bundle.js"></script>
 </body>

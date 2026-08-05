@@ -99,6 +99,12 @@ export interface SettingsPatch {
     language: string;
     /** HF model id from TTS_MODEL_OPTIONS. */
     ttsModel: string;
+    /** LLM max output tokens. */
+    maxTokens: number;
+    /** Captions window geometry + font size. */
+    captions: CaptionWindowConfig;
+    /** Pet window dimensions. */
+    petWindow: WindowConfig;
 }
 
 export interface SaveSettingsResult {
@@ -135,6 +141,23 @@ export interface WindowConfig {
     height: number;
 }
 
+/** Screen-space rectangle (CSS px, display coordinates). */
+export interface WindowRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+/**
+ * The standalone subtitles window: a transparent, always-on-top, click-through
+ * surface that can span the whole screen. Geometry is in display coordinates;
+ * the renderer reads `fontSize` for the caption text size.
+ */
+export interface CaptionWindowConfig extends WindowRect {
+    fontSize: number;
+}
+
 export interface DebugConfig {
     autoSendWav: string;
 }
@@ -148,12 +171,15 @@ export interface AppConfig {
     vad: VadConfig;
     image: string;
     window: WindowConfig;
+    captions: CaptionWindowConfig;
     debug: DebugConfig;
 }
 
 export const CHANNELS = {
     getConfig: 'get-config',
     speechAudio: 'speech-audio',
+    speechStart: 'speech-start',
+    ttsStart: 'tts-start',
     sttText: 'stt-text',
     llmText: 'llm-text',
     ttsChunk: 'tts-chunk',
@@ -167,6 +193,8 @@ export const CHANNELS = {
     appReadyQuery: 'app-ready-query',
     openSettings: 'open-settings',
     saveSettings: 'save-settings',
+    captionsConfig: 'captions-config',
+    getWorkArea: 'get-work-area',
     openCharactersFolder: 'open-characters-folder',
     listCharacters: 'list-characters',
     selectCharacter: 'select-character',
@@ -176,10 +204,16 @@ export const CHANNELS = {
 export interface VoiceBoxApi {
     getConfig(): Promise<AppConfig>;
     sendSpeech(audio: Float32Array): void;
+    /** Fired when an utterance enters the pipeline (waiting indicator). */
+    onSpeechStart(cb: () => void): void;
     onSttText(cb: (text: string) => void): void;
     onLlmText(cb: (text: string) => void): void;
     onTtsChunk(cb: (buf: ArrayBuffer) => void): void;
+    /** Fired when reply audio starts streaming (waiting indicator off). */
+    onTtsStart(cb: () => void): void;
     onTtsEnd(cb: () => void): void;
+    /** Captions window geometry + font size after a settings save. */
+    onCaptionsConfig(cb: (cfg: CaptionWindowConfig) => void): void;
     onToast(cb: (msg: string) => void): void;
     windowDragStart(): void;
     windowDragMove(dx: number, dy: number): void;
@@ -189,6 +223,8 @@ export interface VoiceBoxApi {
     isAppReady(): Promise<boolean>;
     openSettings(): void;
     openCharactersFolder(): void;
+    /** Primary display work area, for the settings "Fill screen" button. */
+    getWorkArea(): Promise<WindowRect>;
     saveSettings(patch: SettingsPatch): Promise<SaveSettingsResult>;
     listCharacters(): Promise<CharacterSummary[]>;
     selectCharacter(id: string): Promise<SelectCharacterResult>;

@@ -1,6 +1,5 @@
 import type { AppConfig, VoiceBoxApi } from '../../shared/contract';
 import { AudioPlayer } from './audio-player';
-import { Captions } from './captions';
 import { Toast } from './toast';
 import { VadController } from './vad-controller';
 import { WindowDragController } from './window-drag';
@@ -15,11 +14,7 @@ const img = document.getElementById('momo') as HTMLImageElement;
 const toastEl = document.getElementById('toast') as HTMLDivElement;
 const micBtn = document.getElementById('mic-btn') as HTMLButtonElement;
 const loadingEl = document.getElementById('loading') as HTMLDivElement;
-const captionsEl = document.getElementById('captions') as HTMLDivElement;
-const captionTextEl = document.getElementById('caption-text') as HTMLSpanElement;
 const body = document.body;
-
-const captions = new Captions(captionsEl, captionTextEl);
 
 function resolveImageSrc(image: string): string {
     if (image.startsWith('http')) {
@@ -47,6 +42,11 @@ async function main(): Promise<void> {
         window.api.openSettings();
     });
 
+    const exitBtn = document.getElementById('exit-btn') as HTMLButtonElement;
+    exitBtn.addEventListener('click', () => {
+        window.api.quit();
+    });
+
     const toast = new Toast(toastEl);
     window.api.onToast((msg) => {
         toast.show(msg);
@@ -65,8 +65,6 @@ async function main(): Promise<void> {
         config.vad,
         audioContext,
         (audio) => {
-            captions.showWaiting(); 
-
             window.api.sendSpeech(audio);
         },
         toast,
@@ -83,21 +81,11 @@ async function main(): Promise<void> {
             }
         },
     );
-    window.api.onSttText((text) => {
-        captions.setText(text);
-    });
-    window.api.onLlmText((text) => {
-        captions.setText(text);
-    });
     window.api.onTtsChunk((buf) => {
-        captions.hideWaiting(); 
-
         const f32 = new Float32Array(buf);
         player.enqueue(f32);
     });
     window.api.onTtsEnd(() => {
-        captions.hideWaiting(); 
-
         player.finish();
     });
 

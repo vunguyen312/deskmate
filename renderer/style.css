@@ -1,5 +1,6 @@
 html,
 body {
+  height: 100%;
   background: transparent;
   margin: 0;
   overflow: hidden;
@@ -7,7 +8,6 @@ body {
 
 #momo {
   width: 100%;
-  height: 100%;
   display: block;
   filter: brightness(0.55);
   transition: filter 0.35s ease;
@@ -39,11 +39,11 @@ body.speaking #momo {
   transition: color 0.2s ease;
 }
 
-/* Gear button: only visible while the pointer is over the window. */
-#settings-btn {
+/* Window buttons: only visible while the pointer is over the window. */
+#settings-btn,
+#exit-btn {
   position: fixed;
   top: 8px;
-  left: 8px;
   width: 26px;
   height: 26px;
   z-index: 30;
@@ -63,16 +63,31 @@ body.speaking #momo {
     color 0.2s ease;
 }
 
-body:hover #settings-btn {
+#settings-btn {
+  left: 8px;
+}
+
+#exit-btn {
+  right: 8px;
+}
+
+body:hover #settings-btn,
+body:hover #exit-btn {
   opacity: 1;
   pointer-events: auto;
 }
 
-#settings-btn:hover {
+#settings-btn:hover,
+#exit-btn:hover {
   color: #fff;
 }
 
-#settings-btn svg {
+#exit-btn:hover {
+  color: #f87171;
+}
+
+#settings-btn svg,
+#exit-btn svg {
   width: 14px;
   height: 14px;
 }
@@ -163,85 +178,4 @@ body.loading #momo {
 
 #toast.show {
   opacity: 1;
-}
-
-#captions {
-  position: fixed;
-  left: 56px;
-  bottom: 29px;
-  transform: translateY(50%);
-  max-width: calc(100% - 68px);
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  pointer-events: none;
-}
-
-#caption-text {
-  color: #fff;
-  font: 13px/1.4 sans-serif;
-  text-shadow:
-    -1px -1px 0 #000,
-    1px -1px 0 #000,
-    -1px 1px 0 #000,
-    1px 1px 0 #000,
-    0 -1px 0 #000,
-    0 1px 0 #000,
-    -1px 0 0 #000,
-    1px 0 0 #000;
-  min-width: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-}
-
-.dots {
-  display: none;
-  align-items: center;
-  gap: 3px;
-  flex-shrink: 0;
-}
-
-#captions.waiting .dots {
-  display: inline-flex;
-}
-
-.dots span {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow:
-    -1px -1px 0 #000,
-    1px -1px 0 #000,
-    -1px 1px 0 #000,
-    1px 1px 0 #000,
-    0 -1px 0 #000,
-    0 1px 0 #000,
-    -1px 0 0 #000,
-    1px 0 0 #000;
-  animation: dot-wave 0.9s ease-in-out infinite;
-}
-
-.dots span:nth-child(2) {
-  animation-delay: 0.15s;
-}
-
-.dots span:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-@keyframes dot-wave {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-5px);
-  }
 }

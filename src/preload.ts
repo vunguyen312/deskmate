@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { CHANNELS, type VoiceBoxApi } from '../shared/contract';
+import { CHANNELS, type CaptionWindowConfig, type VoiceBoxApi } from '../shared/contract';
 
 const api: VoiceBoxApi = {
     getConfig: () => {
@@ -7,6 +7,11 @@ const api: VoiceBoxApi = {
     },
     sendSpeech: (audio) => {
         ipcRenderer.send(CHANNELS.speechAudio, audio);
+    },
+    onSpeechStart: (cb) => {
+        ipcRenderer.on(CHANNELS.speechStart, () => {
+            cb();
+        });
     },
     onSttText: (cb) => {
         ipcRenderer.on(CHANNELS.sttText, (_e, text: string) => {
@@ -21,6 +26,11 @@ const api: VoiceBoxApi = {
     onTtsChunk: (cb) => {
         ipcRenderer.on(CHANNELS.ttsChunk, (_e, buf: ArrayBuffer) => {
             cb(buf);
+        });
+    },
+    onTtsStart: (cb) => {
+        ipcRenderer.on(CHANNELS.ttsStart, () => {
+            cb();
         });
     },
     onTtsEnd: (cb) => {
@@ -72,6 +82,17 @@ const api: VoiceBoxApi = {
         ipcRenderer.on(CHANNELS.avatarChanged, (_e, image: string) => {
             cb(image);
         });
+    },
+    onCaptionsConfig: (cb) => {
+        ipcRenderer.on(
+            CHANNELS.captionsConfig,
+            (_e, cfg: CaptionWindowConfig) => {
+                cb(cfg);
+            },
+        );
+    },
+    getWorkArea: () => {
+        return ipcRenderer.invoke(CHANNELS.getWorkArea);
     },
 };
 

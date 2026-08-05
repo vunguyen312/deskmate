@@ -13,19 +13,44 @@ declare global {
     }
 }
 
-const tabButtons: Record<'characters' | 'voice', HTMLButtonElement> = {
-    characters: document.getElementById('tab-btn-characters') as HTMLButtonElement,
+const tabButtons: Record<
+    'characters' | 'voice' | 'captions' | 'pet',
+    HTMLButtonElement
+> = {
+    characters: document.getElementById(
+        'tab-btn-characters',
+    ) as HTMLButtonElement,
     voice: document.getElementById('tab-btn-voice') as HTMLButtonElement,
+    captions: document.getElementById(
+        'tab-btn-captions',
+    ) as HTMLButtonElement,
+    pet: document.getElementById('tab-btn-pet') as HTMLButtonElement,
 };
-const panels: Record<'characters' | 'voice', HTMLElement> = {
+const panels: Record<
+    'characters' | 'voice' | 'captions' | 'pet',
+    HTMLElement
+> = {
     characters: document.getElementById('panel-characters') as HTMLElement,
     voice: document.getElementById('panel-voice') as HTMLElement,
+    captions: document.getElementById('panel-captions') as HTMLElement,
+    pet: document.getElementById('panel-pet') as HTMLElement,
 };
 const characterListEl = document.getElementById('character-list') as HTMLDivElement;
 const charactersStatusEl = document.getElementById('status-characters') as HTMLSpanElement;
 const voiceStatusEl = document.getElementById('status-voice') as HTMLSpanElement;
 const openFolderBtn = document.getElementById('open-folder') as HTMLButtonElement;
 const saveBtn = document.getElementById('save') as HTMLButtonElement;
+const maxTokensInput = document.getElementById('max-tokens') as HTMLInputElement;
+const capXInput = document.getElementById('cap-x') as HTMLInputElement;
+const capYInput = document.getElementById('cap-y') as HTMLInputElement;
+const capWidthInput = document.getElementById('cap-width') as HTMLInputElement;
+const capHeightInput = document.getElementById('cap-height') as HTMLInputElement;
+const capFontSizeInput = document.getElementById(
+    'cap-font-size',
+) as HTMLInputElement;
+const fillScreenBtn = document.getElementById('fill-screen') as HTMLButtonElement;
+const petWidthInput = document.getElementById('pet-width') as HTMLInputElement;
+const petHeightInput = document.getElementById('pet-height') as HTMLInputElement;
 
 const languageDropdown = new Dropdown<string>(() => {});
 const modelDropdown = new Dropdown<string>(() => {});
@@ -39,8 +64,10 @@ function resolveImageSrc(image: string): string {
     return new URL(image, location.origin).href;
 }
 
-function showTab(name: 'characters' | 'voice'): void {
-    for (const key of Object.keys(tabButtons) as Array<'characters' | 'voice'>) {
+function showTab(name: 'characters' | 'voice' | 'captions' | 'pet'): void {
+    for (const key of Object.keys(tabButtons) as Array<
+        'characters' | 'voice' | 'captions' | 'pet'
+    >) {
         const active = key === name;
         tabButtons[key].classList.toggle('active', active);
         panels[key].classList.toggle('hidden', !active);
@@ -70,6 +97,35 @@ function refreshVoiceSettings(config: AppConfig): void {
         TTS_MODEL_OPTIONS.map((m) => ({ value: m.id, label: m.label })),
         storedModel.id,
     );
+    maxTokensInput.value = String(config.llm.maxTokens);
+}
+
+function refreshCaptionsSettings(config: AppConfig): void {
+    const c = config.captions;
+    capXInput.value = String(c.x);
+    capYInput.value = String(c.y);
+    capWidthInput.value = String(c.width);
+    capHeightInput.value = String(c.height);
+    capFontSizeInput.value = String(c.fontSize);
+}
+
+function refreshPetSettings(config: AppConfig): void {
+    petWidthInput.value = String(config.window.width);
+    petHeightInput.value = String(config.window.height);
+}
+
+/** Parse an integer input and range-check it; throws with a UI-ready message. */
+function readInt(
+    el: HTMLInputElement,
+    min: number,
+    max: number,
+    name: string,
+): number {
+    const value = Number(el.value);
+    if (!Number.isInteger(value) || value < min || value > max) {
+        throw new Error(`${name} must be an integer between ${min} and ${max}`);
+    }
+    return value;
 }
 
 async function renderCharacters(): Promise<void> {
@@ -133,6 +189,8 @@ async function selectCharacter(ch: CharacterSummary): Promise<void> {
 async function main(): Promise<void> {
     const config = await window.api.getConfig();
     refreshVoiceSettings(config);
+    refreshCaptionsSettings(config);
+    refreshPetSettings(config);
     await renderCharacters();
 
     tabButtons.characters.addEventListener('click', () => {
@@ -141,9 +199,34 @@ async function main(): Promise<void> {
     tabButtons.voice.addEventListener('click', () => {
         showTab('voice');
     });
+    tabButtons.captions.addEventListener('click', () => {
+        showTab('captions');
+    });
+    tabButtons.pet.addEventListener('click', () => {
+        showTab('pet');
+    });
 
     openFolderBtn.addEventListener('click', () => {
         window.api.openCharactersFolder();
+    });
+
+    fillScreenBtn.addEventListener('click', async () => {
+        fillScreenBtn.disabled = true;
+        try {
+            const area = await window.api.getWorkArea();
+            capXInput.value = String(area.x);
+            capYInput.value = String(area.y);
+            capWidthInput.value = String(area.width);
+            capHeightInput.value = String(area.height);
+        } catch (err) {
+            showStatus(
+                voiceStatusEl,
+                `Failed to fill screen: ${String(err)}`,
+                true,
+            );
+        } finally {
+            fillScreenBtn.disabled = false;
+        }
     });
 
     // Re-list after the user drops a character folder in the file manager
@@ -159,6 +242,23 @@ async function main(): Promise<void> {
             const result = await window.api.saveSettings({
                 language: languageDropdown.current!,
                 ttsModel: modelDropdown.current!,
+                maxTokens: readInt(maxTokensInput, 64, 131072, 'Max tokens'),
+                captions: {
+                    x: readInt(capXInput, -99999, 99999, 'X'),
+                    y: readInt(capYInput, -99999, 99999, 'Y'),
+                    width: readInt(capWidthInput, 200, 9999, 'Width'),
+                    height: readInt(capHeightInput, 100, 9999, 'Height'),
+                    fontSize: readInt(
+                        capFontSizeInput,
+                        12,
+                        400,
+                        'Font size',
+                    ),
+                },
+                petWindow: {
+                    width: readInt(petWidthInput, 100, 4000, 'Width'),
+                    height: readInt(petHeightInput, 100, 4000, 'Height'),
+                },
             });
             showStatus(
                 voiceStatusEl,

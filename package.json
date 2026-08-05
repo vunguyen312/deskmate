@@ -4,7 +4,7 @@
   "main": "dist/main.js",
   "private": true,
   "scripts": {
-    "build": "tsc --noEmit && esbuild src/main.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main.js && esbuild src/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/preload.js && esbuild renderer/src/main.ts --bundle --format=iife --outfile=dist/bundle.js && esbuild renderer/src/settings.ts --bundle --format=iife --outfile=dist/settings-bundle.js",
+    "build": "tsc --noEmit && esbuild src/main.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/main.js && esbuild src/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/preload.js && esbuild renderer/src/main.ts --bundle --format=iife --outfile=dist/bundle.js && esbuild renderer/src/captions-main.ts --bundle --format=iife --outfile=dist/captions-bundle.js && esbuild renderer/src/settings.ts --bundle --format=iife --outfile=dist/settings-bundle.js",
     "typecheck": "tsc --noEmit",
     "start": "npm run build && electron ."
   },

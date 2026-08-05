@@ -152,6 +152,54 @@ label {
   color: #8b8ba3;
 }
 
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  font-weight: 600;
+  font-size: 12px;
+  color: #8b8ba3;
+}
+
+input[type='number'] {
+  width: 100%;
+  box-sizing: border-box;
+  background: #1e1e2c;
+  color: #e5e7eb;
+  border: 1px solid #2f2f42;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+input[type='number']:hover {
+  background: #262638;
+}
+
+input[type='number']:focus-visible {
+  outline: none;
+  border-color: #4ade80;
+}
+
+#fill-screen {
+  margin-top: 10px;
+  background: transparent;
+  border: 1px solid #2f2f42;
+  color: #8b8ba3;
+}
+
+#fill-screen:hover {
+  background: #262638;
+  color: #e5e7eb;
+}
+
 .character-list {
   display: grid;
   grid-template-columns: 1fr 1fr;

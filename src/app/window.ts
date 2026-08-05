@@ -56,6 +56,26 @@ export class PetWindow {
         }
     }
 
+    /**
+     * Apply new dimensions, e.g. right after a settings save.
+     *
+     * Uses setBounds (not setSize): on X11 a `resizable: false` window's WM
+     * size hints stick at the largest size ever set, so setSize can grow the
+     * window but silently refuses to shrink it. setBounds works both ways.
+     */
+    public apply(config: WindowConfig): void {
+        if (!this.browserWindow || this.browserWindow.isDestroyed()) {
+            return;
+        }
+        const [x, y] = this.browserWindow.getPosition();
+        this.browserWindow.setBounds({
+            x,
+            y,
+            width: config.width,
+            height: config.height,
+        });
+    }
+
     private registerDragIpc(): void {
         ipcMain.on(CHANNELS.windowDragStart, () => {
             

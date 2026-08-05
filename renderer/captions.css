@@ -1,0 +1,92 @@
+html,
+body {
+  background: transparent;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* The window itself is click-through; this container is only for layout. */
+#captions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 6vh;
+  padding: 0 4vw;
+  box-sizing: border-box;
+  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.4em;
+  pointer-events: none;
+}
+
+#caption-text {
+  color: #fff;
+  font: var(--caption-font-size, 48px) / 1.35 sans-serif;
+  text-align: center;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  /* Hard outline scales with the font; the glow keeps it readable over
+     bright content without a background box. */
+  text-shadow:
+    -2px -2px 0 #000,
+    2px -2px 0 #000,
+    -2px 2px 0 #000,
+    2px 2px 0 #000,
+    0 -2px 0 #000,
+    0 2px 0 #000,
+    -2px 0 0 #000,
+    2px 0 0 #000,
+    0 0 12px rgb(0 0 0 / 75%);
+}
+
+.dots {
+  display: none;
+  align-items: center;
+  gap: 0.35em;
+  flex-shrink: 0;
+  padding-bottom: 0.35em;
+}
+
+#captions.waiting .dots {
+  display: inline-flex;
+}
+
+.dots span {
+  width: 0.3em;
+  height: 0.3em;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000,
+    0 -1px 0 #000,
+    0 1px 0 #000,
+    -1px 0 0 #000,
+    1px 0 0 #000;
+  animation: dot-wave 0.9s ease-in-out infinite;
+}
+
+.dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dot-wave {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-0.35em);
+  }
+}

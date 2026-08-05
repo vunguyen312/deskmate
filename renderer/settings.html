@@ -12,6 +12,8 @@
     <nav class="tabs">
       <button id="tab-btn-characters" class="tab active" type="button">Characters</button>
       <button id="tab-btn-voice" class="tab" type="button">Voice &amp; LLM</button>
+      <button id="tab-btn-captions" class="tab" type="button">Captions</button>
+      <button id="tab-btn-pet" class="tab" type="button">Pet</button>
     </nav>
 
     <section id="panel-characters" class="tab-panel">
@@ -38,11 +40,48 @@
         <p class="hint">Changing this restarts the TTS server (~60s).</p>
       </section>
 
-      <div class="actions">
-        <span id="status-voice" role="status"></span>
-        <button id="save" type="button">Save</button>
-      </div>
+      <section>
+        <label for="max-tokens">Max tokens</label>
+        <input id="max-tokens" type="number" min="64" max="131072" step="1" inputmode="numeric">
+        <p class="hint">Maximum output tokens per LLM reply. Raise it to let the model answer at length — the captions window has room to show it all.</p>
+      </section>
     </section>
+
+    <section id="panel-captions" class="tab-panel hidden">
+      <section>
+        <label>Window</label>
+        <div class="field-grid">
+          <label class="field">X<input id="cap-x" type="number" step="1" inputmode="numeric"></label>
+          <label class="field">Y<input id="cap-y" type="number" step="1" inputmode="numeric"></label>
+          <label class="field">Width<input id="cap-width" type="number" min="200" step="1" inputmode="numeric"></label>
+          <label class="field">Height<input id="cap-height" type="number" min="100" step="1" inputmode="numeric"></label>
+        </div>
+        <p class="hint">Position and size in screen pixels. Y grows downward — 0 is the top edge, negative Y pushes the window off the top. The window is transparent and click-through; subtitles are drawn at the bottom edge.</p>
+        <button id="fill-screen" type="button">Fill screen</button>
+      </section>
+
+      <section>
+        <label for="cap-font-size">Font size</label>
+        <input id="cap-font-size" type="number" min="12" max="400" step="1" inputmode="numeric">
+        <p class="hint">Caption text size in pixels. Larger windows want larger text.</p>
+      </section>
+    </section>
+
+    <section id="panel-pet" class="tab-panel hidden">
+      <section>
+        <label>Pet window</label>
+        <div class="field-grid">
+          <label class="field">Width<input id="pet-width" type="number" min="100" max="4000" step="1" inputmode="numeric"></label>
+          <label class="field">Height<input id="pet-height" type="number" min="100" max="4000" step="1" inputmode="numeric"></label>
+        </div>
+        <p class="hint">Size of the floating pet window in pixels. Drag the pet by its face to reposition it — position is not set here.</p>
+      </section>
+    </section>
+
+    <div class="actions">
+      <span id="status-voice" role="status"></span>
+      <button id="save" type="button">Save</button>
+    </div>
   </main>
   <script src="/dist/settings-bundle.js"></script>
 </body>

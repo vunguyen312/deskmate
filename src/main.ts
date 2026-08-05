@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { app, ipcMain, session, shell } from 'electron';
+import { app, ipcMain, screen, session, shell } from 'electron';
 import * as path from 'node:path';
 import {
     CHANNELS,
@@ -15,7 +15,7 @@ import { CharacterRegistry } from './app/characters';
 import { scheduleAutoSendWav } from './dev/debug';
 import { LlmClient } from './clients/llm-client';
 import { APP_DIR } from './utils/paths';
-import { ConversationPipeline } from './pipeline';
+import { ConversationPipeline, type WindowTarget } from './pipeline';
 import type { ChildService } from './services/child-service';
 import { LlamaService } from './services/llama-service';
 import { SttService } from './services/stt-service';
@@ -25,6 +25,7 @@ import { StaticServer } from './app/static-server';
 import { SttClient } from './clients/stt-client';
 import { TtsClient } from './clients/tts-client';
 import { PetWindow } from './app/window';
+import { CaptionsWindow } from './app/captions-window';
 
 if (process.platform === 'linux') {
     app.commandLine.appendSwitch('enable-transparent-visuals');
@@ -134,8 +135,8 @@ function openFolder(dir: string, toast: (msg: string) => void): void {
 /**
  * Overlay a character's persona onto the effective config. Mutates in place so
  * the services and clients holding references to `config.data.llm/tts/stt`
- * pick the change up without being reconstructed. Language and the TTS model
- * are app-level settings (config.json) and are left untouched.
+ * pick the change up without being reconstructed. Language, the TTS model, and
+ * `llm.maxTokens` are app-level settings (config.json) and are left untouched.
  */
 function applyCharacter(cfg: AppConfig, character: CharacterInfo): void {
     cfg.character = character.id;
@@ -149,7 +150,10 @@ function applyCharacter(cfg: AppConfig, character: CharacterInfo): void {
         cfg.llm.systemPrompt = character.systemPrompt;
     }
     if (character.llm) {
-        Object.assign(cfg.llm, character.llm);
+        // maxTokens is app-level (Settings → Voice & LLM): it must survive
+        // restarts and character switches, so characters never override it.
+        const { maxTokens: _characterMaxTokens, ...overrides } = character.llm;
+        Object.assign(cfg.llm, overrides);
     }
 }
 
@@ -177,14 +181,53 @@ app.whenReady().then(async () => {
     });
     const port = await new StaticServer(APP_DIR).start();
     console.log(`[voice-box] static server on 127.0.0.1:${port}`);
+    // First run (or config predating the captions window): default to the
+    // full primary display work area so subtitles span the screen by default.
+    if (!config.data.captions) {
+        const wa = screen.getPrimaryDisplay().workArea;
+        config.data.captions = {
+            x: wa.x,
+            y: wa.y,
+            width: wa.width,
+            height: wa.height,
+            fontSize: 48,
+        };
+        config.save();
+    }
     petWindow = new PetWindow(port, config.data.window);
     petWindow.create();
+    const captionsWindow = new CaptionsWindow(port, config.data.captions);
+    captionsWindow.create();
     const settingsWindow = new SettingsWindow(port);
 
+    // Route caption/pipeline events to every window that shows them; toasts
+    // stay on the pet window so errors do not plaster the whole screen.
+    // The pipeline ends every utterance (reply, skip, or error) with ttsEnd,
+    // so it is the per-utterance reset point for the ttsStart flag below.
+    let ttsFirstChunk = true;
+    const broadcast: WindowTarget = {
+        send(channel: string, ...args: unknown[]): void {
+            petWindow?.send(channel, ...args);
+            if (channel !== CHANNELS.toast) {
+                captionsWindow.send(channel, ...args);
+            }
+            if (channel === CHANNELS.ttsEnd) {
+                ttsFirstChunk = true;
+            }
+        },
+    };
+
+    // The PCM chunk buffer is transferred to the pet renderer, so the
+    // captions window gets a lightweight "playback started" signal on the
+    // first chunk of each reply instead.
     const ttsClient = new TtsClient(
         config.data.tts,
         (f32) => {
             petWindow!.send(CHANNELS.ttsChunk, f32.buffer, [f32.buffer]);
+            if (ttsFirstChunk) {
+                ttsFirstChunk = false;
+                captionsWindow.send(CHANNELS.ttsStart);
+            }
         },
         toast,
     );
@@ -192,7 +235,7 @@ app.whenReady().then(async () => {
         stt: new SttClient(config.data.stt),
         llm: new LlmClient(config.data.llm),
         tts: ttsClient,
-        window: petWindow,
+        window: broadcast,
         config: config.data,
     });
 
@@ -224,6 +267,10 @@ app.whenReady().then(async () => {
         return config.data;
     });
 
+    ipcMain.handle(CHANNELS.getWorkArea, () => {
+        return screen.getPrimaryDisplay().workArea;
+    });
+
     ipcMain.on(CHANNELS.openSettings, () => {
         settingsWindow.open();
     });
@@ -240,9 +287,36 @@ app.whenReady().then(async () => {
             );
             if (
                 !lang ||
-                !TTS_MODEL_OPTIONS.some((m) => m.id === patch.ttsModel)
+                !TTS_MODEL_OPTIONS.some((m) => m.id === patch.ttsModel) ||
+                !Number.isInteger(patch.maxTokens) ||
+                patch.maxTokens < 64 ||
+                patch.maxTokens > 131072
             ) {
                 throw new Error('invalid settings payload');
+            }
+            const c = patch.captions;
+            if (
+                !c ||
+                ![c.x, c.y, c.width, c.height, c.fontSize].every(
+                    Number.isFinite,
+                ) ||
+                c.width < 200 ||
+                c.height < 100 ||
+                c.fontSize < 12 ||
+                c.fontSize > 400
+            ) {
+                throw new Error('invalid captions payload');
+            }
+            const pw = patch.petWindow;
+            if (
+                !pw ||
+                ![pw.width, pw.height].every(Number.isInteger) ||
+                pw.width < 100 ||
+                pw.width > 4000 ||
+                pw.height < 100 ||
+                pw.height > 4000
+            ) {
+                throw new Error('invalid pet window payload');
             }
             // App-level settings: persist in config.json, independent of the
             // active character. Language is applied per request by the
@@ -251,7 +325,12 @@ app.whenReady().then(async () => {
             config.data.stt.language = lang.stt;
             config.data.tts.language = lang.tts;
             config.data.tts.model = patch.ttsModel;
+            config.data.llm.maxTokens = patch.maxTokens;
+            Object.assign(config.data.captions, c);
+            Object.assign(config.data.window, pw);
             config.save();
+            captionsWindow.apply(config.data.captions);
+            petWindow?.apply(config.data.window);
             let ttsRestarting = false;
             if (config.data.tts.model !== prevModel) {
                 ttsRestarting = true;
@@ -306,6 +385,7 @@ app.whenReady().then(async () => {
         return { ok: true, ttsRestarting, llmRestarting };
     });
     ipcMain.on(CHANNELS.speechAudio, (_e, audio: Float32Array) => {
+        captionsWindow.send(CHANNELS.speechStart);
         void pipeline.run(audio);
     });
     ipcMain.on(CHANNELS.quit, () => {

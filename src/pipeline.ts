@@ -7,9 +7,13 @@ import type { TtsClient } from './clients/tts-client';
 import { STT_DEFAULT_PORT } from './services/stt-service';
 import { TTS_DEFAULT_PORT } from './services/tts-service';
 import { servicePort } from './utils/urls';
-import type { PetWindow } from './app/window';
 
 const DEFAULT_HISTORY_CAP = 20;
+
+/** Anything that can receive renderer-bound IPC messages. */
+export interface WindowTarget {
+    send(channel: string, ...args: unknown[]): void;
+}
 
 export class ConversationPipeline {
     private busy = false;
@@ -20,7 +24,7 @@ export class ConversationPipeline {
             stt: SttClient;
             llm: LlmClient;
             tts: TtsClient;
-            window: PetWindow;
+            window: WindowTarget;
             config: AppConfig;
             historyCap?: number;
         },

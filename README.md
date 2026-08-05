@@ -4,8 +4,9 @@ An always-listening Electron companion that lives as a small floating PNG on top
 everything. It listens continuously (Silero VAD), transcribes locally (whisper.cpp),
 runs the text through an LLM (llama.cpp, fully local), and speaks the
 reply with the repo's faster-qwen3-tts voice clone, brightening the image while
-it talks. Your words and the reply are shown as subtitles at the bottom edge (white with
-a black outline, no background), with three bouncing dots while the LLM has not replied
+it talks. Your words and the reply are shown as subtitles in a separate transparent,
+click-through captions window that can span the whole screen (white text with a black
+outline, no background), with three bouncing dots while the LLM has not replied
 with audio yet. No title bar, no buttons — the image is the app. Drag it around by its face,
 right-click (or Ctrl+Q) to quit.
 
@@ -140,12 +141,13 @@ Every folder under `characters/` is a character the app can run as. A folder nee
 | `description` | One-line blurb shown under the name |
 | `image` | Avatar path, relative to the character folder |
 | `systemPrompt` | Persona prompt for the LLM |
-| `llm` | `model`, `maxTokens`, `temperature`, `think`, `frequencyPenalty`, `presencePenalty`, `gpuLayers` (same meanings as `config.json`'s `llm.*`) |
+| `llm` | `model`, `temperature`, `think`, `frequencyPenalty`, `presencePenalty`, `gpuLayers` (same meanings as `config.json`'s `llm.*`; `maxTokens` is app-level and is never overridden by a character) |
 
 The TTS voice is whatever the folder's `voices.json` declares — the first voice in
-the file wins (matching the TTS server's default). Language (STT/TTS) and the TTS
-model are app-level settings in `config.json`, editable in Settings → Voice &amp; LLM,
-and are never overridden by a character.
+the file wins (matching the TTS server's default). Language (STT/TTS), the TTS
+model, and `llm.maxTokens` are app-level settings in `config.json`, editable in
+Settings → Voice &amp; LLM, and are never overridden by a character. The captions
+window geometry and font size live in Settings → Captions.
 
 Switching characters in Settings → Characters restarts the TTS server (voice change)
 and llama-server (LLM model change); the avatar swaps immediately.
@@ -153,8 +155,9 @@ and llama-server (LLM model change); the avatar swaps immediately.
 ## Configuration keys
 
 `llm.*` below are fallback defaults — the active character's `character.json`
-overrides `systemPrompt` and the `llm` fields. `stt.language`, `tts.language` and
-`tts.model` are app-level: characters never touch them.
+overrides `systemPrompt` and the `llm` fields (except `maxTokens`, which is
+app-level). `stt.language`, `tts.language`, `tts.model` and `llm.maxTokens` are
+app-level: characters never touch them.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -162,7 +165,7 @@ overrides `systemPrompt` and the `llm` fields. `stt.language`, `tts.language` an
 | `llm.baseUrl` | `http://127.0.0.1:8081` | llama-server base URL (llama.cpp's stock port is 8080; voice-box defaults to 8081 to avoid common collisions) |
 | `llm.model` | `"unsloth/Qwen3.5-2B-GGUF:Q4_K_S"` | `<repo>:<quant>` naming the pre-installed GGUF at `voice-box/models/<base>-<quant>.gguf` — no download, that file must exist |
 | `llm.systemPrompt` | モモ prompt | Persona; change to any language you want the replies in |
-| `llm.maxTokens` / `llm.temperature` | `4096` / `0.7` | Generation knobs (qwen3.5's thinking needs ~2.5–3.5k tokens per reply — too low yields empty replies) |
+| `llm.maxTokens` / `llm.temperature` | `4096` / `0.7` | Generation knobs (qwen3.5's thinking needs ~2.5–3.5k tokens per reply — too low yields empty replies). `maxTokens` is app-level, editable in Settings → Voice &amp; LLM, and never overridden by characters |
 | `llm.think` | `false` | Thinking for qwen3.5 models (`chat_template_kwargs.enable_thinking`); `true` = reasoned replies, but slow on a 2B (~5–12s each) |
 | `llm.frequencyPenalty` / `llm.presencePenalty` | `0.5` / `0.3` | OpenAI-style repetition suppression (applies to answers and reasoning; keeps small models from looping) |
 | `llm.gpuLayers` | `99` | llama.cpp `-ngl` GPU offload; set `0` for CPU-only llama.cpp builds (llama.cpp falls back to CPU automatically when no GPU backend is present) |
@@ -177,7 +180,9 @@ overrides `systemPrompt` and the `llm` fields. `stt.language`, `tts.language` an
 | `tts.responseFormat` | `"pcm"` | `"pcm"` (streamed) or `"wav"` |
 | `vad.threshold` | `0.5` | Silero VAD sensitivity (`positiveSpeechThreshold`) |
 | `image` | `"characters/momo/momo.png"` | PNG path, relative to `voice-box/` (fallback; the active character's `character.json` wins) |
-| `window.width/height` | `300` | Window size in px |
+| `window.width/height` | `300` | Pet window size in px (editable in Settings → Pet; the pet's position is set by dragging it) |
+| `captions.x/y/width/height` | primary display work area | Captions window geometry in screen px (editable in Settings → Captions; **Fill screen** snaps it to the work area). The window is transparent and click-through — clicks fall through to whatever is underneath |
+| `captions.fontSize` | `48` | Caption text size in px |
 | `debug.autoSendWav` | `""` | Absolute path to a WAV fed through the full pipeline on startup (dev, no mic needed) |
 
 Replace the image in `characters/<id>/` (any size; it is scaled to the window) or edit
