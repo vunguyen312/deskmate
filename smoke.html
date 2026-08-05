@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="/renderer/style.css">
+  <script>
+    const listeners = {};
+    window.api = {
+      getConfig: async () => ({
+        llm: {}, stt: {}, tts: { sampleRate: 24000 }, vad: {},
+        image: '/assets/momo.png', window: { width: 300, height: 300 }, debug: {},
+      }),
+      sendSpeech: () => {},
+      onSttText: (cb) => { listeners.stt = cb; },
+      onLlmText: (cb) => { listeners.llm = cb; },
+      onTtsChunk: (cb) => { listeners.chunk = cb; },
+      onTtsEnd: (cb) => { listeners.end = cb; },
+      onToast: (cb) => { listeners.toast = cb; },
+      onAppReady: (cb) => { listeners.ready = cb; },
+      isAppReady: async () => false,
+      windowDragStart: () => {}, windowDragMove: () => {}, windowDragEnd: () => {},
+      quit: () => {},
+    };
+    window.__test = {
+      ready: () => listeners.ready?.(),
+      speech: () => document.getElementById('captions').classList.add('waiting'),
+      stt: (t) => listeners.stt?.(t),
+      llm: (t) => listeners.llm?.(t),
+      chunk: () => listeners.chunk?.(new Float32Array(1600).buffer),
+      end: () => listeners.end?.(),
+    };
+  </script>
+</head>
+<body class="loading">
+  <img id="momo" src="/assets/momo.png" draggable="false" alt="">
+  <button id="mic-btn" type="button" title="クリックでマイクをオン" aria-label="マイクを有効にする">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+      <line class="slash" x1="4.5" y1="4.5" x2="19.5" y2="19.5"/>
+    </svg>
+  </button>
+  <div id="loading"><div class="spinner"></div></div>
+  <div id="captions" aria-live="polite">
+    <span id="caption-text"></span>
+    <span id="caption-dots" class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+  </div>
+  <div id="toast"></div>
+  <script src="/dist/bundle.js"></script>
+</body>
+</html>

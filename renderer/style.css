@@ -1,0 +1,209 @@
+html,
+body {
+  background: transparent;
+  margin: 0;
+  overflow: hidden;
+}
+
+#momo {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: brightness(0.55);
+  transition: filter 0.35s ease;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+body.speaking #momo {
+  filter: none;
+}
+
+#mic-btn {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  width: 34px;
+  height: 34px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(20, 20, 30, 0.85);
+  color: #9ca3af;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+#mic-btn:hover {
+  color: #d1d5db;
+}
+
+#mic-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+#mic-btn .slash {
+  display: block;
+}
+
+#mic-btn.live {
+  color: #4ade80;
+}
+
+#mic-btn.live .slash {
+  display: none;
+}
+
+body.loading #momo {
+  filter: brightness(0.35);
+}
+
+#loading {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: wait;
+}
+
+#loading.hidden {
+  display: none;
+}
+
+#loading .spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(20, 20, 30, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#loading .spinner::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.18);
+  border-top-color: #4ade80;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#toast {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 110;
+  background: rgba(20, 20, 30, 0.85);
+  color: #fff;
+  font: 12px/1.4 sans-serif;
+  padding: 6px 12px;
+  border-radius: 12px;
+  max-width: 90%;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  white-space: pre-line;
+}
+
+#toast.show {
+  opacity: 1;
+}
+
+#captions {
+  position: fixed;
+  left: 56px;
+  bottom: 29px;
+  transform: translateY(50%);
+  max-width: calc(100% - 68px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+#caption-text {
+  color: #fff;
+  font: 13px/1.4 sans-serif;
+  text-shadow:
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000,
+    0 -1px 0 #000,
+    0 1px 0 #000,
+    -1px 0 0 #000,
+    1px 0 0 #000;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.dots {
+  display: none;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+#captions.waiting .dots {
+  display: inline-flex;
+}
+
+.dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000,
+    0 -1px 0 #000,
+    0 1px 0 #000,
+    -1px 0 0 #000,
+    1px 0 0 #000;
+  animation: dot-wave 0.9s ease-in-out infinite;
+}
+
+.dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dot-wave {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-5px);
+  }
+}

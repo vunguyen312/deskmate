@@ -1,0 +1,38 @@
+{
+  "llm": {
+    "baseUrl": "http://127.0.0.1:8081",
+    "model": "unsloth/Qwen3.5-2B-GGUF:Q4_K_S",
+    "systemPrompt": "You are モモ・ベリア・デビルーク, a cheerful anime girl companion. Speak only casual spoken Japanese, 1-2 short sentences. No markdown, no emoji, no formatting — you are speaking out loud. Do not repeat the user's words back.",
+    "maxTokens": 4096,
+    "temperature": 0.7,
+    "think": false,
+    "frequencyPenalty": 0.5,
+    "presencePenalty": 0.3,
+    "spawn": true,
+    "gpuLayers": 99
+  },
+  "stt": {
+    "url": "http://127.0.0.1:8002",
+    "model": "small",
+    "language": "ja"
+  },
+  "tts": {
+    "url": "http://127.0.0.1:8001",
+    "voice": "momo",
+    "responseFormat": "pcm",
+    "sampleRate": 24000,
+    "spawn": true
+  },
+  "vad": {
+    "threshold": 0.5,
+    "minSilenceFrames": 12
+  },
+  "image": "assets/momo.png",
+  "window": {
+    "width": 300,
+    "height": 300
+  },
+  "debug": {
+    "autoSendWav": ""
+  }
+}
