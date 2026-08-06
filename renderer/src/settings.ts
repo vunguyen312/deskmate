@@ -41,12 +41,29 @@ const voiceStatusEl = document.getElementById('status-voice') as HTMLSpanElement
 const openFolderBtn = document.getElementById('open-folder') as HTMLButtonElement;
 const saveBtn = document.getElementById('save') as HTMLButtonElement;
 const maxTokensInput = document.getElementById('max-tokens') as HTMLInputElement;
+const llmModelInput = document.getElementById('llm-model') as HTMLInputElement;
+const llmTemperatureInput = document.getElementById(
+    'llm-temperature',
+) as HTMLInputElement;
+const llmThinkInput = document.getElementById('llm-think') as HTMLInputElement;
+const llmFreqPenaltyInput = document.getElementById(
+    'llm-freq-penalty',
+) as HTMLInputElement;
+const llmPresencePenaltyInput = document.getElementById(
+    'llm-presence-penalty',
+) as HTMLInputElement;
+const llmGpuLayersInput = document.getElementById(
+    'llm-gpu-layers',
+) as HTMLInputElement;
 const capXInput = document.getElementById('cap-x') as HTMLInputElement;
 const capYInput = document.getElementById('cap-y') as HTMLInputElement;
 const capWidthInput = document.getElementById('cap-width') as HTMLInputElement;
 const capHeightInput = document.getElementById('cap-height') as HTMLInputElement;
 const capFontSizeInput = document.getElementById(
     'cap-font-size',
+) as HTMLInputElement;
+const capEnabledInput = document.getElementById(
+    'cap-enabled',
 ) as HTMLInputElement;
 const fillScreenBtn = document.getElementById('fill-screen') as HTMLButtonElement;
 const petWidthInput = document.getElementById('pet-width') as HTMLInputElement;
@@ -97,11 +114,18 @@ function refreshVoiceSettings(config: AppConfig): void {
         TTS_MODEL_OPTIONS.map((m) => ({ value: m.id, label: m.label })),
         storedModel.id,
     );
+    llmModelInput.value = config.llm.model;
+    llmTemperatureInput.value = String(config.llm.temperature);
+    llmThinkInput.checked = config.llm.think ?? false;
+    llmFreqPenaltyInput.value = String(config.llm.frequencyPenalty ?? 0);
+    llmPresencePenaltyInput.value = String(config.llm.presencePenalty ?? 0);
+    llmGpuLayersInput.value = String(config.llm.gpuLayers ?? 99);
     maxTokensInput.value = String(config.llm.maxTokens);
 }
 
 function refreshCaptionsSettings(config: AppConfig): void {
     const c = config.captions;
+    capEnabledInput.checked = c.enabled;
     capXInput.value = String(c.x);
     capYInput.value = String(c.y);
     capWidthInput.value = String(c.width);
@@ -128,6 +152,20 @@ function readInt(
     return value;
 }
 
+/** Parse a decimal input and range-check it; throws with a UI-ready message. */
+function readNumber(
+    el: HTMLInputElement,
+    min: number,
+    max: number,
+    name: string,
+): number {
+    const value = Number(el.value);
+    if (!Number.isFinite(value) || value < min || value > max) {
+        throw new Error(`${name} must be between ${min} and ${max}`);
+    }
+    return value;
+}
+
 async function renderCharacters(): Promise<void> {
     const list = await window.api.listCharacters();
     characterListEl.replaceChildren();
@@ -139,7 +177,9 @@ async function renderCharacters(): Promise<void> {
         card.title = ch.active ? `${ch.name} (active)` : `Switch to ${ch.name}`;
 
         const img = document.createElement('img');
-        img.src = resolveImageSrc(ch.image);
+        if (ch.image) {
+            img.src = resolveImageSrc(ch.image);
+        }
         img.alt = '';
 
         const info = document.createElement('div');
@@ -168,17 +208,10 @@ async function selectCharacter(ch: CharacterSummary): Promise<void> {
     try {
         const result = await window.api.selectCharacter(ch.id);
         await renderCharacters();
-        const restarted: string[] = [];
-        if (result.ttsRestarting) {
-            restarted.push('TTS');
-        }
-        if (result.llmRestarting) {
-            restarted.push('LLM');
-        }
         showStatus(
             charactersStatusEl,
-            restarted.length > 0
-                ? `Switched to ${ch.name} — restarting ${restarted.join(' + ')}…`
+            result.ttsRestarting
+                ? `Switched to ${ch.name} — restarting TTS…`
                 : `Switched to ${ch.name}`,
         );
     } catch (err) {
@@ -239,11 +272,39 @@ async function main(): Promise<void> {
         saveBtn.disabled = true;
         showStatus(voiceStatusEl, '');
         try {
+            const llmModel = llmModelInput.value.trim();
+            if (!llmModel) {
+                throw new Error('LLM model must not be empty');
+            }
             const result = await window.api.saveSettings({
                 language: languageDropdown.current!,
                 ttsModel: modelDropdown.current!,
-                maxTokens: readInt(maxTokensInput, 64, 131072, 'Max tokens'),
+                llm: {
+                    model: llmModel,
+                    maxTokens: readInt(maxTokensInput, 64, 131072, 'Max tokens'),
+                    temperature: readNumber(
+                        llmTemperatureInput,
+                        0,
+                        2,
+                        'Temperature',
+                    ),
+                    think: llmThinkInput.checked,
+                    frequencyPenalty: readNumber(
+                        llmFreqPenaltyInput,
+                        -2,
+                        2,
+                        'Frequency penalty',
+                    ),
+                    presencePenalty: readNumber(
+                        llmPresencePenaltyInput,
+                        -2,
+                        2,
+                        'Presence penalty',
+                    ),
+                    gpuLayers: readInt(llmGpuLayersInput, 0, 999, 'GPU layers'),
+                },
                 captions: {
+                    enabled: capEnabledInput.checked,
                     x: readInt(capXInput, -99999, 99999, 'X'),
                     y: readInt(capYInput, -99999, 99999, 'Y'),
                     width: readInt(capWidthInput, 200, 9999, 'Width'),
@@ -260,10 +321,17 @@ async function main(): Promise<void> {
                     height: readInt(petHeightInput, 100, 4000, 'Height'),
                 },
             });
+            const restarted: string[] = [];
+            if (result.ttsRestarting) {
+                restarted.push('TTS');
+            }
+            if (result.llmRestarting) {
+                restarted.push('LLM');
+            }
             showStatus(
                 voiceStatusEl,
-                result.ttsRestarting
-                    ? 'Saved — restarting TTS model…'
+                restarted.length > 0
+                    ? `Saved — restarting ${restarted.join(' + ')}…`
                     : 'Saved',
             );
         } catch (err) {

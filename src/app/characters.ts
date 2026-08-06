@@ -13,6 +13,17 @@ export const VOICES_FILE = 'voices.json';
 /** Character metadata file name. */
 export const CHARACTER_FILE = 'character.json';
 
+/** Image file extensions accepted for a character's icon. */
+const ICON_EXTENSIONS = [
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.webp',
+    '.gif',
+    '.avif',
+    '.bmp',
+];
+
 export class CharacterRegistry {
     constructor(public readonly root: string = CHARACTERS_DIR) {}
 
@@ -56,16 +67,28 @@ export class CharacterRegistry {
     }
 
     /**
-     * Resolve a character's avatar to an app-relative path (or pass through
-     * http(s) URLs). The static server serves from the app dir, so a
-     * character-folder-relative image becomes `characters/<id>/<image>`.
+     * Resolve a character's avatar: the single `icon` image file inside its
+     * folder (`characters/<id>/icon.<ext>`), as an app-relative path for the
+     * static server. Null when the folder has no icon file.
      */
-    public resolveImage(character: CharacterInfo): string {
-        const image = character.image;
-        if (!image || /^(https?:)?\//.test(image)) {
-            return image;
+    public resolveImage(id: string): string | null {
+        let entries;
+        try {
+            entries = readdirSync(path.join(this.root, id));
+        } catch {
+            return null;
         }
-        return `characters/${character.id}/${image}`.replace(/\\/g, '/');
+        const icon = entries.find((file) => {
+            const ext = path.extname(file).toLowerCase();
+            const stem = path
+                .basename(file, path.extname(file))
+                .toLowerCase();
+            return stem === 'icon' && ICON_EXTENSIONS.includes(ext);
+        });
+        if (!icon) {
+            return null;
+        }
+        return `characters/${id}/${icon}`.replace(/\\/g, '/');
     }
 
     /** The character's voices.json, relative to the app dir. */
@@ -106,7 +129,7 @@ export class CharacterRegistry {
             id: character.id,
             name: character.name || character.id,
             description: character.description,
-            image: this.resolveImage(character),
+            image: this.resolveImage(character.id) ?? undefined,
             active: character.id === activeId,
         };
     }

@@ -23,6 +23,14 @@ function resolveImageSrc(image: string): string {
     return new URL(image, location.origin).href;
 }
 
+function setAvatar(src: string | undefined): void {
+    if (src) {
+        img.src = resolveImageSrc(src);
+    } else {
+        img.removeAttribute('src');
+    }
+}
+
 function finishLoading(): void {
     body.classList.remove('loading');
     loadingEl.classList.add('hidden');
@@ -30,9 +38,9 @@ function finishLoading(): void {
 
 async function main(): Promise<void> {
     const config: AppConfig = await window.api.getConfig();
-    img.src = resolveImageSrc(config.image);
+    setAvatar(config.image);
     window.api.onAvatarChanged((image) => {
-        img.src = resolveImageSrc(image);
+        setAvatar(image);
     });
 
     const settingsBtn = document.getElementById(

@@ -41,6 +41,44 @@
       </section>
 
       <section>
+        <label for="llm-model">LLM model</label>
+        <input id="llm-model" type="text" spellcheck="false">
+        <p class="hint">Model id (&lt;repo&gt;:&lt;quant&gt;) naming a GGUF installed at voice-box/models/&lt;base&gt;-&lt;quant&gt;.gguf. Changing it restarts llama-server.</p>
+      </section>
+
+      <section>
+        <label for="llm-temperature">Temperature</label>
+        <input id="llm-temperature" type="number" min="0" max="2" step="0.1" inputmode="decimal">
+        <p class="hint">Randomness of replies — lower is more deterministic.</p>
+      </section>
+
+      <section>
+        <label class="check-row">
+          <input id="llm-think" type="checkbox">
+          <span>Thinking</span>
+        </label>
+        <p class="hint">Reasoning for qwen3-style models: slower on a 2B (~5–12s per reply) and needs a high max tokens.</p>
+      </section>
+
+      <section>
+        <label for="llm-freq-penalty">Frequency penalty</label>
+        <input id="llm-freq-penalty" type="number" min="-2" max="2" step="0.1" inputmode="decimal">
+        <p class="hint">Repetition suppression — keeps small quantized models from looping.</p>
+      </section>
+
+      <section>
+        <label for="llm-presence-penalty">Presence penalty</label>
+        <input id="llm-presence-penalty" type="number" min="-2" max="2" step="0.1" inputmode="decimal">
+        <p class="hint">Encourages new topics over repeating earlier ones.</p>
+      </section>
+
+      <section>
+        <label for="llm-gpu-layers">GPU layers</label>
+        <input id="llm-gpu-layers" type="number" min="0" max="999" step="1" inputmode="numeric">
+        <p class="hint">llama.cpp GPU offload (-ngl) for the spawned server; 0 = CPU. Changing it restarts llama-server.</p>
+      </section>
+
+      <section>
         <label for="max-tokens">Max tokens</label>
         <input id="max-tokens" type="number" min="64" max="131072" step="1" inputmode="numeric">
         <p class="hint">Maximum output tokens per LLM reply. Raise it to let the model answer at length — the captions window has room to show it all.</p>
@@ -48,6 +86,14 @@
     </section>
 
     <section id="panel-captions" class="tab-panel hidden">
+      <section>
+        <label class="check-row">
+          <input id="cap-enabled" type="checkbox">
+          <span>Show captions</span>
+        </label>
+        <p class="hint">Toggles the subtitles window on the screen. Its position, size, and font size are kept while hidden.</p>
+      </section>
+
       <section>
         <label>Window</label>
         <div class="field-grid">

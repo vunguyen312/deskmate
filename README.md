@@ -10,8 +10,8 @@ outline, no background), with three bouncing dots while the LLM has not replied
 with audio yet. No title bar, no buttons — the image is the app. Drag it around by its face,
 right-click (or Ctrl+Q) to quit.
 
-Characters live in `characters/` — each folder is a self-contained companion (avatar,
-reference voice, persona prompt, model choices). The app ships with `characters/momo/`;
+Characters live in `characters/` — each folder is a self-contained companion (icon,
+reference voice, persona prompt). The app ships with `characters/momo/`;
 pick another from the Settings → Characters tab. The **Open folder** button there opens
 `characters/` in your file manager — drop a new folder in and it appears in the list when
 the settings window regains focus (no restart).
@@ -43,7 +43,9 @@ mic ──▶ VAD (renderer, @ricky0123/vad-web) ──▶ dist/main.js ──�
   cmake -B /tmp/whisper.cpp/build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=86 \
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_FLAGS="-Xcompiler=-U_GNU_SOURCE"
   cmake --build /tmp/whisper.cpp/build --target whisper-server -j 8
-  # then copy build/bin/whisper-server + build/bin/*.so* flat into voice-box/vendor/whisper/
+  # then copy build/bin/whisper-server + build/bin/libwhisper.so.1 + build/bin/libggml*.so.0
+  # flat into voice-box/vendor/whisper/ (only the soname files are needed at runtime;
+  # skip the unversioned and fully-versioned copies — the loader never uses them)
   ```
 
   > On glibc ≥ 2.41 (Ubuntu 26.04+), CUDA ≥ 13.2 headers are required — CUDA
@@ -72,7 +74,10 @@ mic ──▶ VAD (renderer, @ricky0123/vad-web) ──▶ dist/main.js ──�
   cmake -B /tmp/llama.cpp/build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=86 \
         -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF -DCMAKE_CUDA_FLAGS="-Xcompiler=-U_GNU_SOURCE"
   cmake --build /tmp/llama.cpp/build --target llama-server -j 8
-  # then copy build/bin/llama-server + build/bin/*.so* flat into voice-box/vendor/llama/
+  # then copy build/bin/llama-server + build/bin/libllama-server-impl.so + build/bin/libllama.so.0
+  # + build/bin/libllama-common.so.0 + build/bin/libmtmd.so.0 + build/bin/libggml*.so.0
+  # flat into voice-box/vendor/llama/ (only the soname files are needed at runtime;
+  # skip the unversioned and fully-versioned copies — the loader never uses them)
   ```
 
   > On glibc ≥ 2.41 (Ubuntu 26.04+), CUDA ≥ 13.2 headers are required — CUDA
@@ -119,9 +124,8 @@ load. Set `llm.spawn`/`tts.spawn` to `false` to disable auto-starting.
 ## Configuration (`voice-box/config.json`)
 
 `config.json` is the single source of app-level configuration — the app embeds no
-defaults. The `llm` section (and `image`) are fallback defaults: the active
-character's `character.json` overrides them. Language and the TTS model are purely
-app-level and are never overridden by characters.
+defaults. The `llm` section is app-level: characters carry no model choices and never
+override it. Language and the TTS model are purely app-level as well.
 
 ## Characters (`voice-box/characters/`)
 
@@ -129,42 +133,44 @@ Every folder under `characters/` is a character the app can run as. A folder nee
 
 | File | Meaning |
 |---|---|
-| `character.json` | Persona + model choices (schema below) |
+| `character.json` | Persona (schema below) |
 | `voices.json` | TTS voice config for the `server/openai_server.py` `--voices` flag; `ref_audio` paths are relative to the folder itself |
-| the reference audio + avatar | e.g. `momo.wav`, `momo.png` |
+| the reference audio + icon | e.g. `momo.wav`, `icon.png` |
 
-`character.json` schema — every field except `name`/`image` is optional:
+`character.json` schema — every field except `name` is optional:
 
 | Key | Meaning |
 |---|---|
 | `name` | Display name shown in the settings tab |
 | `description` | One-line blurb shown under the name |
-| `image` | Avatar path, relative to the character folder |
-| `systemPrompt` | Persona prompt for the LLM |
-| `llm` | `model`, `temperature`, `think`, `frequencyPenalty`, `presencePenalty`, `gpuLayers` (same meanings as `config.json`'s `llm.*`; `maxTokens` is app-level and is never overridden by a character) |
+| `systemPrompt` | Persona prompt for the LLM (fallback: `config.json`'s `llm.systemPrompt`) |
 
-The TTS voice is whatever the folder's `voices.json` declares — the first voice in
-the file wins (matching the TTS server's default). Language (STT/TTS), the TTS
-model, and `llm.maxTokens` are app-level settings in `config.json`, editable in
-Settings → Voice &amp; LLM, and are never overridden by a character. The captions
-window geometry and font size live in Settings → Captions.
+The avatar is the single `icon` image file inside the folder (`icon.png`,
+`icon.jpg`, … — any image extension; it is scaled to the window). The TTS voice
+is whatever the folder's `voices.json` declares — the first voice in the file
+wins (matching the TTS server's default). Language (STT/TTS), the TTS model, and
+all LLM settings (model, temperature, penalties, GPU layers, max tokens) are
+app-level in `config.json`, editable in Settings → Voice &amp; LLM, and are never
+overridden by a character. The captions window geometry and font size live in
+Settings → Captions.
 
-Switching characters in Settings → Characters restarts the TTS server (voice change)
-and llama-server (LLM model change); the avatar swaps immediately.
+Switching characters in Settings → Characters restarts the TTS server (voice
+change); the avatar swaps immediately — llama-server is untouched because LLM
+settings are app-level.
 
 ## Configuration keys
 
-`llm.*` below are fallback defaults — the active character's `character.json`
-overrides `systemPrompt` and the `llm` fields (except `maxTokens`, which is
-app-level). `stt.language`, `tts.language`, `tts.model` and `llm.maxTokens` are
-app-level: characters never touch them.
+`llm.*` below are app-level — editable in Settings → Voice &amp; LLM; only
+`llm.systemPrompt` can be overridden by the active character's
+`character.json`. `stt.language`, `tts.language` and `tts.model` are app-level
+too: characters never touch them.
 
 | Key | Default | Meaning |
 |---|---|---|
 | `character` | `"momo"` | Active character (a folder under `characters/`) |
 | `llm.baseUrl` | `http://127.0.0.1:8081` | llama-server base URL (llama.cpp's stock port is 8080; voice-box defaults to 8081 to avoid common collisions) |
 | `llm.model` | `"unsloth/Qwen3.5-2B-GGUF:Q4_K_S"` | `<repo>:<quant>` naming the pre-installed GGUF at `voice-box/models/<base>-<quant>.gguf` — no download, that file must exist |
-| `llm.systemPrompt` | モモ prompt | Persona; change to any language you want the replies in |
+| `llm.systemPrompt` | モモ prompt | Persona; change to any language you want the replies in (the active character's `character.json` `systemPrompt` overrides it) |
 | `llm.maxTokens` / `llm.temperature` | `4096` / `0.7` | Generation knobs (qwen3.5's thinking needs ~2.5–3.5k tokens per reply — too low yields empty replies). `maxTokens` is app-level, editable in Settings → Voice &amp; LLM, and never overridden by characters |
 | `llm.think` | `false` | Thinking for qwen3.5 models (`chat_template_kwargs.enable_thinking`); `true` = reasoned replies, but slow on a 2B (~5–12s each) |
 | `llm.frequencyPenalty` / `llm.presencePenalty` | `0.5` / `0.3` | OpenAI-style repetition suppression (applies to answers and reasoning; keeps small models from looping) |
@@ -179,14 +185,13 @@ app-level: characters never touch them.
 | `tts.voicesFile` | `"characters/momo/voices.json"` | `--voices` file passed to the TTS server, relative to `voice-box/` (set per character) |
 | `tts.responseFormat` | `"pcm"` | `"pcm"` (streamed) or `"wav"` |
 | `vad.threshold` | `0.5` | Silero VAD sensitivity (`positiveSpeechThreshold`) |
-| `image` | `"characters/momo/momo.png"` | PNG path, relative to `voice-box/` (fallback; the active character's `character.json` wins) |
 | `window.width/height` | `300` | Pet window size in px (editable in Settings → Pet; the pet's position is set by dragging it) |
 | `captions.x/y/width/height` | primary display work area | Captions window geometry in screen px (editable in Settings → Captions; **Fill screen** snaps it to the work area). The window is transparent and click-through — clicks fall through to whatever is underneath |
 | `captions.fontSize` | `48` | Caption text size in px |
 | `debug.autoSendWav` | `""` | Absolute path to a WAV fed through the full pipeline on startup (dev, no mic needed) |
 
-Replace the image in `characters/<id>/` (any size; it is scaled to the window) or edit
-`image` in the character's `character.json`.
+Replace the `icon` file in `characters/<id>/` (any size; it is scaled to the
+window) — the file must be named `icon` (e.g. `icon.png`).
 
 ## Troubleshooting
 

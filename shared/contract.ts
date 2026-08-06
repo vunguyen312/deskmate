@@ -76,10 +76,11 @@ export const TTS_MODEL_OPTIONS: readonly TtsModelOption[] = [
 ];
 
 /**
- * A character folder (`characters/<id>/`): persona and LLM overrides.
- * The TTS voice is whatever the folder's `voices.json` declares (first voice
- * wins). Language and the TTS model are app-level settings in `config.json`
- * and are never touched by a character.
+ * A character folder (`characters/<id>/`): persona and voice only.
+ * The avatar is the folder's `icon` image file, the TTS voice is whatever the
+ * folder's `voices.json` declares (first voice wins). LLM settings, language,
+ * and the TTS model are app-level settings in `config.json` and are never
+ * touched by a character.
  */
 export interface CharacterInfo {
     /** Folder name under characters/. */
@@ -87,11 +88,18 @@ export interface CharacterInfo {
     /** Display name for the settings UI. */
     name: string;
     description?: string;
-    /** Avatar path relative to the character folder. */
-    image: string;
     systemPrompt?: string;
-    /** LLM model + generation knobs; overrides the matching `config.json` fields. */
-    llm?: Partial<LlmConfig>;
+}
+
+/** App-level LLM knobs edited in Settings → Voice & LLM; every character shares them. */
+export interface LlmSettingsPatch {
+    model: string;
+    maxTokens: number;
+    temperature: number;
+    think: boolean;
+    frequencyPenalty: number;
+    presencePenalty: number;
+    gpuLayers: number;
 }
 
 export interface SettingsPatch {
@@ -99,8 +107,8 @@ export interface SettingsPatch {
     language: string;
     /** HF model id from TTS_MODEL_OPTIONS. */
     ttsModel: string;
-    /** LLM max output tokens. */
-    maxTokens: number;
+    /** LLM model + generation knobs. */
+    llm: LlmSettingsPatch;
     /** Captions window geometry + font size. */
     captions: CaptionWindowConfig;
     /** Pet window dimensions. */
@@ -111,6 +119,8 @@ export interface SaveSettingsResult {
     ok: true;
     /** True when the TTS server was restarted for a model change. */
     ttsRestarting: boolean;
+    /** True when llama-server was restarted (model or GPU-layers change). */
+    llmRestarting: boolean;
 }
 
 /** Character as shown in the settings tab. */
@@ -118,8 +128,8 @@ export interface CharacterSummary {
     id: string;
     name: string;
     description?: string;
-    /** App-relative path (or http URL) for the avatar. */
-    image: string;
+    /** App-relative path to the folder's icon file, when present. */
+    image?: string;
     active: boolean;
 }
 
@@ -127,8 +137,6 @@ export interface SelectCharacterResult {
     ok: true;
     /** True when the TTS server was restarted (voice change). */
     ttsRestarting: boolean;
-    /** True when llama-server was restarted (LLM model change). */
-    llmRestarting: boolean;
 }
 
 export interface VadConfig {
@@ -156,6 +164,8 @@ export interface WindowRect {
  */
 export interface CaptionWindowConfig extends WindowRect {
     fontSize: number;
+    /** Whether the subtitles window is shown at all (Settings → Captions). */
+    enabled: boolean;
 }
 
 export interface DebugConfig {
@@ -169,7 +179,8 @@ export interface AppConfig {
     stt: SttConfig;
     tts: TtsConfig;
     vad: VadConfig;
-    image: string;
+    /** Avatar of the active character (`characters/<id>/icon.<ext>`), when present. */
+    image?: string;
     window: WindowConfig;
     captions: CaptionWindowConfig;
     debug: DebugConfig;

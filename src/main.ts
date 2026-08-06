@@ -135,12 +135,14 @@ function openFolder(dir: string, toast: (msg: string) => void): void {
 /**
  * Overlay a character's persona onto the effective config. Mutates in place so
  * the services and clients holding references to `config.data.llm/tts/stt`
- * pick the change up without being reconstructed. Language, the TTS model, and
- * `llm.maxTokens` are app-level settings (config.json) and are left untouched.
+ * pick the change up without being reconstructed. Only the persona
+ * (`systemPrompt`) and voice are character-specific: LLM settings, language,
+ * and the TTS model are app-level settings (config.json) and are left
+ * untouched.
  */
 function applyCharacter(cfg: AppConfig, character: CharacterInfo): void {
     cfg.character = character.id;
-    cfg.image = characters.resolveImage(character);
+    cfg.image = characters.resolveImage(character.id) ?? undefined;
     cfg.tts.voicesFile = characters.voicesFile(character);
     const voice = characters.firstVoice(character.id);
     if (voice) {
@@ -148,12 +150,6 @@ function applyCharacter(cfg: AppConfig, character: CharacterInfo): void {
     }
     if (character.systemPrompt !== undefined) {
         cfg.llm.systemPrompt = character.systemPrompt;
-    }
-    if (character.llm) {
-        // maxTokens is app-level (Settings → Voice & LLM): it must survive
-        // restarts and character switches, so characters never override it.
-        const { maxTokens: _characterMaxTokens, ...overrides } = character.llm;
-        Object.assign(cfg.llm, overrides);
     }
 }
 
@@ -191,7 +187,12 @@ app.whenReady().then(async () => {
             width: wa.width,
             height: wa.height,
             fontSize: 48,
+            enabled: true,
         };
+        config.save();
+    } else if (config.data.captions.enabled === undefined) {
+        // Configs written before the toggle existed: keep captions shown.
+        config.data.captions.enabled = true;
         config.save();
     }
     petWindow = new PetWindow(port, config.data.window);
@@ -287,12 +288,33 @@ app.whenReady().then(async () => {
             );
             if (
                 !lang ||
-                !TTS_MODEL_OPTIONS.some((m) => m.id === patch.ttsModel) ||
-                !Number.isInteger(patch.maxTokens) ||
-                patch.maxTokens < 64 ||
-                patch.maxTokens > 131072
+                !TTS_MODEL_OPTIONS.some((m) => m.id === patch.ttsModel)
             ) {
                 throw new Error('invalid settings payload');
+            }
+            const llmPatch = patch.llm;
+            if (
+                !llmPatch ||
+                typeof llmPatch.model !== 'string' ||
+                !llmPatch.model.trim() ||
+                !Number.isInteger(llmPatch.maxTokens) ||
+                llmPatch.maxTokens < 64 ||
+                llmPatch.maxTokens > 131072 ||
+                !Number.isFinite(llmPatch.temperature) ||
+                llmPatch.temperature < 0 ||
+                llmPatch.temperature > 2 ||
+                typeof llmPatch.think !== 'boolean' ||
+                !Number.isFinite(llmPatch.frequencyPenalty) ||
+                llmPatch.frequencyPenalty < -2 ||
+                llmPatch.frequencyPenalty > 2 ||
+                !Number.isFinite(llmPatch.presencePenalty) ||
+                llmPatch.presencePenalty < -2 ||
+                llmPatch.presencePenalty > 2 ||
+                !Number.isInteger(llmPatch.gpuLayers) ||
+                llmPatch.gpuLayers < 0 ||
+                llmPatch.gpuLayers > 999
+            ) {
+                throw new Error('invalid llm payload');
             }
             const c = patch.captions;
             if (
@@ -300,6 +322,7 @@ app.whenReady().then(async () => {
                 ![c.x, c.y, c.width, c.height, c.fontSize].every(
                     Number.isFinite,
                 ) ||
+                typeof c.enabled !== 'boolean' ||
                 c.width < 200 ||
                 c.height < 100 ||
                 c.fontSize < 12 ||
@@ -320,26 +343,46 @@ app.whenReady().then(async () => {
             }
             // App-level settings: persist in config.json, independent of the
             // active character. Language is applied per request by the
-            // clients; only a TTS model change needs a server restart.
-            const prevModel = config.data.tts.model;
+            // clients; only a TTS model or LLM model/GPU change needs a
+            // server restart.
+            const prevTtsModel = config.data.tts.model;
+            const prevLlmModel = config.data.llm.model;
+            const prevGpuLayers = config.data.llm.gpuLayers;
             config.data.stt.language = lang.stt;
             config.data.tts.language = lang.tts;
             config.data.tts.model = patch.ttsModel;
-            config.data.llm.maxTokens = patch.maxTokens;
+            config.data.llm.model = llmPatch.model.trim();
+            config.data.llm.maxTokens = llmPatch.maxTokens;
+            config.data.llm.temperature = llmPatch.temperature;
+            config.data.llm.think = llmPatch.think;
+            config.data.llm.frequencyPenalty = llmPatch.frequencyPenalty;
+            config.data.llm.presencePenalty = llmPatch.presencePenalty;
+            config.data.llm.gpuLayers = llmPatch.gpuLayers;
             Object.assign(config.data.captions, c);
             Object.assign(config.data.window, pw);
             config.save();
             captionsWindow.apply(config.data.captions);
             petWindow?.apply(config.data.window);
             let ttsRestarting = false;
-            if (config.data.tts.model !== prevModel) {
+            if (config.data.tts.model !== prevTtsModel) {
                 ttsRestarting = true;
                 toast('Switching TTS model… (~60s)');
                 void ttsService.restart().catch((err) => {
                     console.error('[voice-box] TTS restart failed:', err);
                 });
             }
-            return { ok: true, ttsRestarting };
+            let llmRestarting = false;
+            if (
+                config.data.llm.model !== prevLlmModel ||
+                config.data.llm.gpuLayers !== prevGpuLayers
+            ) {
+                llmRestarting = true;
+                toast('Restarting LLM server…');
+                void llamaService.restart().catch((err) => {
+                    console.error('[voice-box] llama restart failed:', err);
+                });
+            }
+            return { ok: true, ttsRestarting, llmRestarting };
         },
     );
 
@@ -355,7 +398,7 @@ app.whenReady().then(async () => {
             throw new Error(`unknown character: ${id}`);
         }
         if (id === config.data.character) {
-            return { ok: true, ttsRestarting: false, llmRestarting: false };
+            return { ok: true, ttsRestarting: false };
         }
         const ttsKey = (): string =>
             [
@@ -364,11 +407,11 @@ app.whenReady().then(async () => {
                 config.data.tts.language,
             ].join('|');
         const prevTtsKey = ttsKey();
-        const prevLlmModel = config.data.llm.model;
+        // LLM settings are app-level, so switching characters never touches
+        // llama-server — only the voice (and avatar) can change.
         applyCharacter(config.data, next);
         config.save();
         const ttsRestarting = ttsKey() !== prevTtsKey;
-        const llmRestarting = config.data.llm.model !== prevLlmModel;
         petWindow?.send(CHANNELS.avatarChanged, config.data.image);
         if (ttsRestarting) {
             toast('Switching voice…');
@@ -376,13 +419,7 @@ app.whenReady().then(async () => {
                 console.error('[voice-box] TTS restart failed:', err);
             });
         }
-        if (llmRestarting) {
-            toast('Switching LLM model…');
-            void llamaService.restart().catch((err) => {
-                console.error('[voice-box] llama restart failed:', err);
-            });
-        }
-        return { ok: true, ttsRestarting, llmRestarting };
+        return { ok: true, ttsRestarting };
     });
     ipcMain.on(CHANNELS.speechAudio, (_e, audio: Float32Array) => {
         captionsWindow.send(CHANNELS.speechStart);

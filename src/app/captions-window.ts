@@ -25,6 +25,7 @@ export class CaptionsWindow {
             y,
             width,
             height,
+            show: this.config.enabled,
             transparent: true,
             frame: false,
             alwaysOnTop: true,
@@ -47,13 +48,22 @@ export class CaptionsWindow {
         win.loadURL(`http://127.0.0.1:${this.port}/renderer/captions.html`);
     }
 
-    /** Apply a new geometry + font size, e.g. right after a settings save. */
+    /**
+     * Apply a new geometry + font size, e.g. right after a settings save.
+     * `enabled` controls visibility: hiding keeps geometry and state, and
+     * show/hide are idempotent no-ops when unchanged.
+     */
     public apply(config: CaptionWindowConfig): void {
         if (!this.browserWindow || this.browserWindow.isDestroyed()) {
             return;
         }
         const { x, y, width, height } = config;
         this.browserWindow.setBounds({ x, y, width, height });
+        if (config.enabled) {
+            this.browserWindow.show();
+        } else {
+            this.browserWindow.hide();
+        }
         this.browserWindow.webContents.send(CHANNELS.captionsConfig, config);
     }
 

@@ -14,7 +14,7 @@ export class SettingsWindow {
         }
         const win = new BrowserWindow({
             width: 440,
-            height: 620,
+            height: 760,
             useContentSize: true,
             title: 'voice-box Settings',
             resizable: false,

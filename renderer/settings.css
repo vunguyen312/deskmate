@@ -168,7 +168,8 @@ label {
   color: #8b8ba3;
 }
 
-input[type='number'] {
+input[type='number'],
+input[type='text'] {
   width: 100%;
   box-sizing: border-box;
   background: #1e1e2c;
@@ -179,13 +180,31 @@ input[type='number'] {
   font: inherit;
 }
 
-input[type='number']:hover {
+input[type='number']:hover,
+input[type='text']:hover {
   background: #262638;
 }
 
-input[type='number']:focus-visible {
+input[type='number']:focus-visible,
+input[type='text']:focus-visible {
   outline: none;
   border-color: #4ade80;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: #4ade80;
+  cursor: pointer;
 }
 
 #fill-screen {
