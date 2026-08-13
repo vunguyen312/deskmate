@@ -15,7 +15,7 @@
   "stt": {
     "url": "http://127.0.0.1:8002",
     "model": "small",
-    "language": "en"
+    "language": "ja"
   },
   "tts": {
     "url": "http://127.0.0.1:8001",
@@ -24,7 +24,7 @@
     "responseFormat": "pcm",
     "sampleRate": 24000,
     "spawn": true,
-    "language": "English",
+    "language": "Japanese",
     "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
   },
   "vad": {

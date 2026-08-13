@@ -18,7 +18,8 @@
       onToast: (cb) => { listeners.toast = cb; },
       onAppReady: (cb) => { listeners.ready = cb; },
       isAppReady: async () => false,
-      windowDragStart: () => {}, windowDragMove: () => {}, windowDragEnd: () => {},
+      windowDragStart: () => {}, windowDragMoveTo: () => {}, windowDragEnd: () => {},
+      getWindowPosition: async () => ({ x: 0, y: 0 }),
       quit: () => {},
     };
     window.__test = {

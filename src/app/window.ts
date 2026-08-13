@@ -80,19 +80,36 @@ export class PetWindow {
         ipcMain.on(CHANNELS.windowDragStart, () => {
             
         });
-        ipcMain.on(CHANNELS.windowDragMove, (_e, dx: number, dy: number) => {
-            this.moveBy(dx, dy);
+        ipcMain.on(CHANNELS.windowDragMoveTo, (_e, x: number, y: number) => {
+            this.moveTo(x, y);
         });
         ipcMain.on(CHANNELS.windowDragEnd, () => {
             
         });
+        ipcMain.handle(CHANNELS.getWindowPosition, () => {
+            if (!this.browserWindow || this.browserWindow.isDestroyed()) {
+                return { x: 0, y: 0 };
+            }
+            const [x, y] = this.browserWindow.getPosition();
+            return { x, y };
+        });
     }
 
-    private moveBy(dx: number, dy: number): void {
-        if (!this.browserWindow) {
+    /**
+     * Absolute move: the renderer computes the target (anchor + cursor
+     * displacement) so repeated or queued messages converge on the same
+     * position instead of accumulating. Incremental moves against the window's
+     * own position feed back at speed — the lag between setPosition and the
+     * next event's coordinates makes the window overshoot and oscillate
+     * ("shake") on compositors with async moves (WSLg).
+     */
+    private moveTo(x: number, y: number): void {
+        if (!this.browserWindow || this.browserWindow.isDestroyed()) {
             return;
         }
-        const [x, y] = this.browserWindow.getPosition();
-        this.browserWindow.setPosition(x + dx, y + dy);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+            return;
+        }
+        this.browserWindow.setPosition(Math.round(x), Math.round(y));
     }
 }

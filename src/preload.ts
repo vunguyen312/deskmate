@@ -54,11 +54,14 @@ const api: VoiceBoxApi = {
     windowDragStart: () => {
         ipcRenderer.send(CHANNELS.windowDragStart);
     },
-    windowDragMove: (dx, dy) => {
-        ipcRenderer.send(CHANNELS.windowDragMove, dx, dy);
+    windowDragMoveTo: (x, y) => {
+        ipcRenderer.send(CHANNELS.windowDragMoveTo, x, y);
     },
     windowDragEnd: () => {
         ipcRenderer.send(CHANNELS.windowDragEnd);
+    },
+    getWindowPosition: () => {
+        return ipcRenderer.invoke(CHANNELS.getWindowPosition);
     },
     quit: () => {
         ipcRenderer.send(CHANNELS.quit);

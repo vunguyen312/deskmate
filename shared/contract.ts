@@ -197,8 +197,9 @@ export const CHANNELS = {
     ttsEnd: 'tts-end',
     toast: 'toast',
     windowDragStart: 'window-drag-start',
-    windowDragMove: 'window-drag-move',
+    windowDragMoveTo: 'window-drag-move-to',
     windowDragEnd: 'window-drag-end',
+    getWindowPosition: 'window-get-position',
     quit: 'quit',
     appReady: 'app-ready',
     appReadyQuery: 'app-ready-query',
@@ -227,8 +228,11 @@ export interface VoiceBoxApi {
     onCaptionsConfig(cb: (cfg: CaptionWindowConfig) => void): void;
     onToast(cb: (msg: string) => void): void;
     windowDragStart(): void;
-    windowDragMove(dx: number, dy: number): void;
+    /** Move the pet window to an absolute screen position (DIP). */
+    windowDragMoveTo(x: number, y: number): void;
     windowDragEnd(): void;
+    /** Pet window position (DIP), used to anchor a drag at pointerdown. */
+    getWindowPosition(): Promise<{ x: number; y: number }>;
     quit(): void;
     onAppReady(cb: () => void): void;
     isAppReady(): Promise<boolean>;

@@ -172,11 +172,21 @@ function toast(message: string): void {
 let services: ChildService[] = [];
 
 app.whenReady().then(async () => {
-    session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => {
-        cb(true);
-    });
     const port = await new StaticServer(APP_DIR).start();
     console.log(`[voice-box] static server on 127.0.0.1:${port}`);
+    // The only permission the app needs is the microphone (Silero VAD in the
+    // pet window). Grant 'media' to our own local pages alone and deny every
+    // other permission to every origin.
+    const isLocalOrigin = (wc: Electron.WebContents | null): boolean =>
+        wc !== null && wc.getURL().startsWith(`http://127.0.0.1:${port}`);
+    session.defaultSession.setPermissionRequestHandler(
+        (wc, permission, callback) => {
+            callback(permission === 'media' && isLocalOrigin(wc));
+        },
+    );
+    session.defaultSession.setPermissionCheckHandler(
+        (wc, permission) => permission === 'media' && isLocalOrigin(wc),
+    );
     // First run (or config predating the captions window): default to the
     // full primary display work area so subtitles span the screen by default.
     if (!config.data.captions) {
