@@ -336,12 +336,26 @@ button:hover {
 }
 
 #status-characters,
-#status-voice {
+#status-voice,
+#status-memory {
   font-size: 12px;
   color: #4ade80;
 }
 
 #status-characters.error,
-#status-voice.error {
+#status-voice.error,
+#status-memory.error {
   color: #f87171;
+}
+
+#mem-clear {
+  background: transparent;
+  border: 1px solid #2f2f42;
+  color: #8b8ba3;
+  white-space: nowrap;
+}
+
+#mem-clear:hover {
+  background: #262638;
+  color: #e5e7eb;
 }

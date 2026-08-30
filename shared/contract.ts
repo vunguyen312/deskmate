@@ -20,6 +20,29 @@ export interface LlmConfig {
     gpuLayers?: number;
 }
 
+/**
+ * Long-term memory (Settings → Memory): past exchanges are embedded on-device
+ * and stored in a local vector store (one file per character under
+ * `memory/`), then the most relevant ones are injected into each prompt.
+ * Everything stays on the machine.
+ */
+export interface MemoryConfig {
+    /** Whether memory is on at all. */
+    enabled: boolean;
+    /** Number of relevant past exchanges injected into each prompt. */
+    topK: number;
+    /** Max stored exchanges per character; the oldest are dropped beyond this. */
+    maxEntries: number;
+}
+
+/** Memory state for the settings tab. */
+export interface MemoryStatus {
+    /** Whether the embedding model is loaded and memory is usable. */
+    ready: boolean;
+    /** Stored exchanges for the active character. */
+    count: number;
+}
+
 export interface SttConfig {
     url: string;
     model: string;
@@ -109,6 +132,8 @@ export interface SettingsPatch {
     ttsModel: string;
     /** LLM model + generation knobs. */
     llm: LlmSettingsPatch;
+    /** Long-term memory knobs. */
+    memory: MemoryConfig;
     /** Captions window geometry + font size. */
     captions: CaptionWindowConfig;
     /** Pet window dimensions. */
@@ -176,6 +201,7 @@ export interface AppConfig {
     /** Active character id (a folder under characters/). */
     character: string;
     llm: LlmConfig;
+    memory: MemoryConfig;
     stt: SttConfig;
     tts: TtsConfig;
     vad: VadConfig;
@@ -211,6 +237,8 @@ export const CHANNELS = {
     listCharacters: 'list-characters',
     selectCharacter: 'select-character',
     avatarChanged: 'avatar-changed',
+    getMemoryStatus: 'get-memory-status',
+    clearMemory: 'clear-memory',
 } as const;
 
 export interface VoiceBoxApi {
@@ -244,4 +272,8 @@ export interface VoiceBoxApi {
     listCharacters(): Promise<CharacterSummary[]>;
     selectCharacter(id: string): Promise<SelectCharacterResult>;
     onAvatarChanged(cb: (image: string) => void): void;
+    /** Long-term memory state for the active character (Settings → Memory). */
+    getMemoryStatus(): Promise<MemoryStatus>;
+    /** Delete all stored memories for the active character. */
+    clearMemory(): Promise<MemoryStatus>;
 }

@@ -154,9 +154,27 @@ app-level in `config.json`, editable in Settings → Voice &amp; LLM, and are ne
 overridden by a character. The captions window geometry and font size live in
 Settings → Captions.
 
-Switching characters in Settings → Characters restarts the TTS server (voice
-change); the avatar swaps immediately — llama-server is untouched because LLM
-settings are app-level.
+## Long-term memory
+
+Past exchanges are embedded on-device (transformers.js, `all-MiniLM-L6-v2`) and
+stored in a local LangChain vector store — one JSON file per character under
+`voice-box/memory/` (gitignored). Before each reply, the most relevant past
+exchanges (`memory.topK`) are retrieved and injected into the prompt as
+"Relevant memories", so the companion can recall things you told it earlier.
+Everything stays on your machine.
+
+- First use downloads the ~23 MB embedding model once into
+  `voice-box/models/embeddings/` (Hugging Face). It is never downloaded again;
+  delete that folder to re-download.
+- Each character gets its own store (`memory/<character>.json`); switching
+  characters switches stores.
+- Settings → Memory: on/off toggle, memories-per-reply (`topK`), per-character
+  cap (`maxEntries`), and **Clear memory** (deletes the active character's
+  store).
+- Memory survives restarts. The most recent exchange is never recalled from
+  memory — it is already in the session's short-term history.
+- If the embedding model cannot load (offline first run, disk error), memory
+  is disabled for the session with a toast; the rest of the app is unaffected.
 
 ## Configuration keys
 
@@ -175,7 +193,9 @@ too: characters never touch them.
 | `llm.think` | `false` | Thinking for qwen3.5 models (`chat_template_kwargs.enable_thinking`); `true` = reasoned replies, but slow on a 2B (~5–12s each) |
 | `llm.frequencyPenalty` / `llm.presencePenalty` | `0.5` / `0.3` | OpenAI-style repetition suppression (applies to answers and reasoning; keeps small models from looping) |
 | `llm.gpuLayers` | `99` | llama.cpp `-ngl` GPU offload; set `0` for CPU-only llama.cpp builds (llama.cpp falls back to CPU automatically when no GPU backend is present) |
-| `llm.spawn` | `true` | Auto-start `llama-server` (bound to `llm.baseUrl`) when nothing answers there; local hosts only |
+| `memory.enabled` | `true` | Long-term memory on/off (Settings → Memory) |
+| `memory.topK` | `3` | Number of relevant past exchanges injected into each prompt |
+| `memory.maxEntries` | `500` | Max stored exchanges per character; the oldest are dropped beyond this |
 | `tts.spawn` | `true` | Auto-start the TTS server (repo venv, active character's voice, port from `tts.url`) when it is not running |
 | `stt.url` | `http://127.0.0.1:8002` | STT service URL (port is also used for the auto-spawned server) |
 | `stt.model` | `"small"` | whisper.cpp model size (multilingual); maps to `voice-box/models/ggml-<model>.bin` |

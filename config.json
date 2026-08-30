@@ -12,6 +12,11 @@
     "spawn": true,
     "gpuLayers": 99
   },
+  "memory": {
+    "enabled": true,
+    "topK": 3,
+    "maxEntries": 500
+  },
   "stt": {
     "url": "http://127.0.0.1:8002",
     "model": "small",

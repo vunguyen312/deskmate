@@ -4,6 +4,7 @@ import { errorMessage, ServiceError } from './utils/errors';
 import type { LlmClient } from './clients/llm-client';
 import type { SttClient } from './clients/stt-client';
 import type { TtsClient } from './clients/tts-client';
+import type { MemoryService } from './app/memory';
 import { STT_DEFAULT_PORT } from './services/stt-service';
 import { TTS_DEFAULT_PORT } from './services/tts-service';
 import { servicePort } from './utils/urls';
@@ -27,6 +28,8 @@ export class ConversationPipeline {
             window: WindowTarget;
             config: AppConfig;
             historyCap?: number;
+            /** Long-term memory; null/omitted disables it. */
+            memory?: MemoryService;
         },
     ) {}
 
@@ -54,13 +57,23 @@ export class ConversationPipeline {
             }
             console.log('[voice-box] STT:', text);
             window.send(CHANNELS.sttText, text);
-            const reply = await llm.chat(text, this.history);
+            const memory = this.deps.memory
+                ? await this.deps.memory.load(text)
+                : null;
+            const reply = await llm.chat(
+                text,
+                this.history,
+                memory ?? undefined,
+            );
             console.log('[voice-box] LLM:', reply);
             window.send(CHANNELS.llmText, reply);
             this.history.push({ role: 'user', content: text });
             this.history.push({ role: 'assistant', content: reply });
             if (this.history.length > historyCap) {
                 this.history = this.history.slice(-historyCap);
+            }
+            if (this.deps.memory) {
+                void this.deps.memory.save(text, reply);
             }
             await tts.speak(reply);
             window.send(CHANNELS.ttsEnd);

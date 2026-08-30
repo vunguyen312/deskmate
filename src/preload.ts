@@ -86,6 +86,12 @@ const api: VoiceBoxApi = {
             cb(image);
         });
     },
+    getMemoryStatus: () => {
+        return ipcRenderer.invoke(CHANNELS.getMemoryStatus);
+    },
+    clearMemory: () => {
+        return ipcRenderer.invoke(CHANNELS.clearMemory);
+    },
     onCaptionsConfig: (cb) => {
         ipcRenderer.on(
             CHANNELS.captionsConfig,

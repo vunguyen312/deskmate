@@ -12,6 +12,7 @@
     <nav class="tabs">
       <button id="tab-btn-characters" class="tab active" type="button">Characters</button>
       <button id="tab-btn-voice" class="tab" type="button">Voice &amp; LLM</button>
+      <button id="tab-btn-memory" class="tab" type="button">Memory</button>
       <button id="tab-btn-captions" class="tab" type="button">Captions</button>
       <button id="tab-btn-pet" class="tab" type="button">Pet</button>
     </nav>
@@ -82,6 +83,39 @@
         <label for="max-tokens">Max tokens</label>
         <input id="max-tokens" type="number" min="64" max="131072" step="1" inputmode="numeric">
         <p class="hint">Maximum output tokens per LLM reply. Raise it to let the model answer at length — the captions window has room to show it all.</p>
+      </section>
+    </section>
+
+    <section id="panel-memory" class="tab-panel hidden">
+      <section>
+        <label class="check-row">
+          <input id="mem-enabled" type="checkbox">
+          <span>Long-term memory</span>
+        </label>
+        <p class="hint">Remembers past conversations per character. Utterances are embedded on-device and searched by relevance — everything stays on your machine. First use downloads a small embedding model (~23 MB) into models/embeddings.</p>
+      </section>
+
+      <section>
+        <label for="mem-top-k">Memories per reply</label>
+        <input id="mem-top-k" type="number" min="1" max="20" step="1" inputmode="numeric">
+        <p class="hint">How many past exchanges are pulled into each prompt.</p>
+      </section>
+
+      <section>
+        <label for="mem-max-entries">Max stored exchanges</label>
+        <input id="mem-max-entries" type="number" min="1" max="100000" step="1" inputmode="numeric">
+        <p class="hint">Per character; the oldest are dropped beyond this.</p>
+      </section>
+
+      <section>
+        <label>Stored memories</label>
+        <div class="folder-row">
+          <button id="mem-clear" type="button">Clear memory</button>
+          <p class="hint">Deletes all stored memories for the active character. The embedding model stays cached.</p>
+        </div>
+        <div class="status-row">
+          <span id="status-memory" role="status"></span>
+        </div>
       </section>
     </section>
 

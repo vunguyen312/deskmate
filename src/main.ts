@@ -12,6 +12,7 @@ import {
 } from '../shared/contract';
 import { Config } from './app/config';
 import { CharacterRegistry } from './app/characters';
+import { MemoryService } from './app/memory';
 import { scheduleAutoSendWav } from './dev/debug';
 import { LlmClient } from './clients/llm-client';
 import { APP_DIR } from './utils/paths';
@@ -205,6 +206,11 @@ app.whenReady().then(async () => {
         config.data.captions.enabled = true;
         config.save();
     }
+    // Configs predating long-term memory: enable it with the defaults.
+    if (!config.data.memory) {
+        config.data.memory = { enabled: true, topK: 3, maxEntries: 500 };
+        config.save();
+    }
     petWindow = new PetWindow(port, config.data.window);
     petWindow.create();
     const captionsWindow = new CaptionsWindow(port, config.data.captions);
@@ -242,12 +248,19 @@ app.whenReady().then(async () => {
         },
         toast,
     );
+    const memory = new MemoryService(
+        config.data.memory,
+        config.data.character,
+        toast,
+    );
+    void memory.start();
     const pipeline = new ConversationPipeline({
         stt: new SttClient(config.data.stt),
         llm: new LlmClient(config.data.llm),
         tts: ttsClient,
         window: broadcast,
         config: config.data,
+        memory,
     });
 
     const sttService = new SttService(
@@ -351,6 +364,19 @@ app.whenReady().then(async () => {
             ) {
                 throw new Error('invalid pet window payload');
             }
+            const m = patch.memory;
+            if (
+                !m ||
+                typeof m.enabled !== 'boolean' ||
+                !Number.isInteger(m.topK) ||
+                m.topK < 1 ||
+                m.topK > 20 ||
+                !Number.isInteger(m.maxEntries) ||
+                m.maxEntries < 1 ||
+                m.maxEntries > 100000
+            ) {
+                throw new Error('invalid memory payload');
+            }
             // App-level settings: persist in config.json, independent of the
             // active character. Language is applied per request by the
             // clients; only a TTS model or LLM model/GPU change needs a
@@ -368,6 +394,8 @@ app.whenReady().then(async () => {
             config.data.llm.frequencyPenalty = llmPatch.frequencyPenalty;
             config.data.llm.presencePenalty = llmPatch.presencePenalty;
             config.data.llm.gpuLayers = llmPatch.gpuLayers;
+            Object.assign(config.data.memory, m);
+            memory.applyConfig(config.data.memory);
             Object.assign(config.data.captions, c);
             Object.assign(config.data.window, pw);
             config.save();
@@ -402,6 +430,15 @@ app.whenReady().then(async () => {
             .map((c) => characters.summary(c, config.data.character));
     });
 
+    ipcMain.handle(CHANNELS.getMemoryStatus, () => {
+        return memory.status();
+    });
+
+    ipcMain.handle(CHANNELS.clearMemory, () => {
+        memory.clear();
+        return memory.status();
+    });
+
     ipcMain.handle(CHANNELS.selectCharacter, async (_e, id: string) => {
         const next = characters.get(id);
         if (!next) {
@@ -421,6 +458,7 @@ app.whenReady().then(async () => {
         // llama-server — only the voice (and avatar) can change.
         applyCharacter(config.data, next);
         config.save();
+        memory.switchCharacter(next.id);
         const ttsRestarting = ttsKey() !== prevTtsKey;
         petWindow?.send(CHANNELS.avatarChanged, config.data.image);
         if (ttsRestarting) {

@@ -13,25 +13,22 @@ declare global {
     }
 }
 
-const tabButtons: Record<
-    'characters' | 'voice' | 'captions' | 'pet',
-    HTMLButtonElement
-> = {
+type TabName = 'characters' | 'voice' | 'memory' | 'captions' | 'pet';
+const tabButtons: Record<TabName, HTMLButtonElement> = {
     characters: document.getElementById(
         'tab-btn-characters',
     ) as HTMLButtonElement,
     voice: document.getElementById('tab-btn-voice') as HTMLButtonElement,
+    memory: document.getElementById('tab-btn-memory') as HTMLButtonElement,
     captions: document.getElementById(
         'tab-btn-captions',
     ) as HTMLButtonElement,
     pet: document.getElementById('tab-btn-pet') as HTMLButtonElement,
 };
-const panels: Record<
-    'characters' | 'voice' | 'captions' | 'pet',
-    HTMLElement
-> = {
+const panels: Record<TabName, HTMLElement> = {
     characters: document.getElementById('panel-characters') as HTMLElement,
     voice: document.getElementById('panel-voice') as HTMLElement,
+    memory: document.getElementById('panel-memory') as HTMLElement,
     captions: document.getElementById('panel-captions') as HTMLElement,
     pet: document.getElementById('panel-pet') as HTMLElement,
 };
@@ -69,6 +66,14 @@ const fillScreenBtn = document.getElementById('fill-screen') as HTMLButtonElemen
 const petWidthInput = document.getElementById('pet-width') as HTMLInputElement;
 const petHeightInput = document.getElementById('pet-height') as HTMLInputElement;
 
+const memEnabledInput = document.getElementById('mem-enabled') as HTMLInputElement;
+const memTopKInput = document.getElementById('mem-top-k') as HTMLInputElement;
+const memMaxEntriesInput = document.getElementById(
+    'mem-max-entries',
+) as HTMLInputElement;
+const memStatusEl = document.getElementById('status-memory') as HTMLSpanElement;
+const memClearBtn = document.getElementById('mem-clear') as HTMLButtonElement;
+
 const languageDropdown = new Dropdown<string>(() => {});
 const modelDropdown = new Dropdown<string>(() => {});
 document.getElementById('language-dd')!.append(languageDropdown.element);
@@ -81,10 +86,8 @@ function resolveImageSrc(image: string): string {
     return new URL(image, location.origin).href;
 }
 
-function showTab(name: 'characters' | 'voice' | 'captions' | 'pet'): void {
-    for (const key of Object.keys(tabButtons) as Array<
-        'characters' | 'voice' | 'captions' | 'pet'
-    >) {
+function showTab(name: TabName): void {
+    for (const key of Object.keys(tabButtons) as TabName[]) {
         const active = key === name;
         tabButtons[key].classList.toggle('active', active);
         panels[key].classList.toggle('hidden', !active);
@@ -136,6 +139,34 @@ function refreshCaptionsSettings(config: AppConfig): void {
 function refreshPetSettings(config: AppConfig): void {
     petWidthInput.value = String(config.window.width);
     petHeightInput.value = String(config.window.height);
+}
+
+/**
+ * Memory state for the active character, fetched from the main process.
+ * While the embedding model is still loading (or after a failure) the
+ * count line reflects readiness instead of a number.
+ */
+async function refreshMemoryStatus(enabled: boolean): Promise<void> {
+    const status = await window.api.getMemoryStatus();
+    if (!enabled) {
+        showStatus(memStatusEl, 'Memory is off');
+        return;
+    }
+    if (!status.ready) {
+        showStatus(memStatusEl, 'Embedding model loading… (first use downloads ~23 MB)');
+        return;
+    }
+    showStatus(
+        memStatusEl,
+        `${status.count} exchange${status.count === 1 ? '' : 's'} stored`,
+    );
+}
+
+function refreshMemorySettings(config: AppConfig): void {
+    memEnabledInput.checked = config.memory.enabled;
+    memTopKInput.value = String(config.memory.topK);
+    memMaxEntriesInput.value = String(config.memory.maxEntries);
+    void refreshMemoryStatus(config.memory.enabled);
 }
 
 /** Parse an integer input and range-check it; throws with a UI-ready message. */
@@ -226,11 +257,33 @@ async function main(): Promise<void> {
     refreshPetSettings(config);
     await renderCharacters();
 
+    refreshMemorySettings(config);
+    memClearBtn.addEventListener('click', async () => {
+        memClearBtn.disabled = true;
+        try {
+            const status = await window.api.clearMemory();
+            showStatus(
+                memStatusEl,
+                status.ready
+                    ? 'Memory cleared'
+                    : 'Memory cleared (model not loaded)',
+            );
+        } catch (err) {
+            showStatus(memStatusEl, `Failed to clear: ${String(err)}`, true);
+        } finally {
+            memClearBtn.disabled = false;
+        }
+    });
+
     tabButtons.characters.addEventListener('click', () => {
         showTab('characters');
     });
     tabButtons.voice.addEventListener('click', () => {
         showTab('voice');
+    });
+    tabButtons.memory.addEventListener('click', () => {
+        showTab('memory');
+        void refreshMemoryStatus(memEnabledInput.checked);
     });
     tabButtons.captions.addEventListener('click', () => {
         showTab('captions');
@@ -303,6 +356,16 @@ async function main(): Promise<void> {
                     ),
                     gpuLayers: readInt(llmGpuLayersInput, 0, 999, 'GPU layers'),
                 },
+                memory: {
+                    enabled: memEnabledInput.checked,
+                    topK: readInt(memTopKInput, 1, 20, 'Memories per reply'),
+                    maxEntries: readInt(
+                        memMaxEntriesInput,
+                        1,
+                        100000,
+                        'Max stored exchanges',
+                    ),
+                },
                 captions: {
                     enabled: capEnabledInput.checked,
                     x: readInt(capXInput, -99999, 99999, 'X'),
@@ -321,6 +384,7 @@ async function main(): Promise<void> {
                     height: readInt(petHeightInput, 100, 4000, 'Height'),
                 },
             });
+            void refreshMemoryStatus(memEnabledInput.checked);
             const restarted: string[] = [];
             if (result.ttsRestarting) {
                 restarted.push('TTS');
