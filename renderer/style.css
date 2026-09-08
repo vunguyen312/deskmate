@@ -6,7 +6,7 @@ body {
   overflow: hidden;
 }
 
-#momo {
+#avatar {
   width: 100%;
   display: block;
   filter: brightness(0.55);
@@ -16,7 +16,7 @@ body {
   -webkit-user-drag: none;
 }
 
-body.speaking #momo {
+body.speaking #avatar {
   filter: none;
 }
 
@@ -39,7 +39,6 @@ body.speaking #momo {
   transition: color 0.2s ease;
 }
 
-/* Window buttons: only visible while the pointer is over the window. */
 #settings-btn,
 #exit-btn {
   position: fixed;
@@ -113,7 +112,7 @@ body:hover #exit-btn {
   display: none;
 }
 
-body.loading #momo {
+body.loading #avatar {
   filter: brightness(0.35);
 }
 

@@ -5,11 +5,6 @@ import {
 } from '../../shared/contract';
 import { PRELOAD_PATH } from '../utils/paths';
 
-/**
- * The standalone subtitles window: a transparent, always-on-top surface that
- * can stretch across the whole screen. It is click-through and never focused,
- * so it never blocks or steals input from the windows underneath it.
- */
 export class CaptionsWindow {
     private browserWindow: BrowserWindow | null = null;
 
@@ -40,19 +35,13 @@ export class CaptionsWindow {
                 nodeIntegration: false,
             },
         });
-        // Clicks must pass through to the windows underneath; `forward: true`
-        // still lets the page see mouse moves (hover, :active) if ever needed.
+
         win.setIgnoreMouseEvents(true, { forward: true });
         win.setAlwaysOnTop(true, 'screen-saver');
         this.browserWindow = win;
         win.loadURL(`http://127.0.0.1:${this.port}/renderer/captions.html`);
     }
 
-    /**
-     * Apply a new geometry + font size, e.g. right after a settings save.
-     * `enabled` controls visibility: hiding keeps geometry and state, and
-     * show/hide are idempotent no-ops when unchanged.
-     */
     public apply(config: CaptionWindowConfig): void {
         if (!this.browserWindow || this.browserWindow.isDestroyed()) {
             return;

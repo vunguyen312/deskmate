@@ -10,7 +10,7 @@ declare global {
     }
 }
 
-const img = document.getElementById('momo') as HTMLImageElement;
+const img = document.getElementById('avatar') as HTMLImageElement;
 const toastEl = document.getElementById('toast') as HTMLDivElement;
 const micBtn = document.getElementById('mic-btn') as HTMLButtonElement;
 const loadingEl = document.getElementById('loading') as HTMLDivElement;

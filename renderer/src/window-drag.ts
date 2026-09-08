@@ -3,17 +3,17 @@ import type { VoiceBoxApi } from '../../shared/contract';
 const DRAG_THRESHOLD_PX = 5;
 
 interface DragAnchor {
-    /** Window position (DIP) when the drag started. */
+
     windowX: number;
     windowY: number;
-    /** Cursor screen position (DIP) when the drag started. */
+
     screenX: number;
     screenY: number;
 }
 
 export class WindowDragController {
     private anchor: DragAnchor | null = null;
-    /** Bumped on every pointerdown/up/cancel; invalidates pending anchors. */
+
     private dragGen = 0;
 
     constructor(
@@ -28,17 +28,12 @@ export class WindowDragController {
             try {
                 this.el.setPointerCapture(e.pointerId);
             } catch {
-                // Synthetic pointer (tests/assistive input): no active pointer
-                // to capture. The drag still works; moves just need the cursor
-                // to stay over the element.
+
             }
-            // Anchor the window position + grab point once. Every move then
-            // sends the *absolute* target (anchor + cursor displacement), so
-            // late or burst IPC messages all converge on the same position —
-            // no accumulation, no feedback, no shake at any drag speed.
+
             void this.api.getWindowPosition().then((pos) => {
                 if (gen !== this.dragGen) {
-                    return; // drag ended before the anchor query resolved
+                    return;
                 }
                 this.anchor = {
                     windowX: pos.x,

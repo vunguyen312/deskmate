@@ -8,7 +8,7 @@
     window.api = {
       getConfig: async () => ({
         llm: {}, stt: {}, tts: { sampleRate: 24000 }, vad: {},
-        image: '/assets/momo.png', window: { width: 300, height: 300 }, debug: {},
+        image: '', window: { width: 300, height: 300 }, debug: {},
       }),
       sendSpeech: () => {},
       onSttText: (cb) => { listeners.stt = cb; },
@@ -30,7 +30,7 @@
   </script>
 </head>
 <body class="loading">
-  <img id="momo" src="/assets/momo.png" draggable="false" alt="">
+  <img id="avatar" draggable="false" alt="">
   <button id="mic-btn" type="button" title="クリックでマイクをオン" aria-label="マイクを有効にする">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>

@@ -8,12 +8,10 @@ import { APP_DIR } from '../utils/paths';
 
 export const CHARACTERS_DIR = path.join(APP_DIR, 'characters');
 
-/** Voices file name every character folder must carry (consumed by the TTS server). */
 export const VOICES_FILE = 'voices.json';
-/** Character metadata file name. */
+
 export const CHARACTER_FILE = 'character.json';
 
-/** Image file extensions accepted for a character's icon. */
 const ICON_EXTENSIONS = [
     '.png',
     '.jpg',
@@ -27,7 +25,6 @@ const ICON_EXTENSIONS = [
 export class CharacterRegistry {
     constructor(public readonly root: string = CHARACTERS_DIR) {}
 
-    /** All characters found under characters/, in directory order. */
     public list(): CharacterInfo[] {
         let entries;
         try {
@@ -66,11 +63,6 @@ export class CharacterRegistry {
         return this.list().find((c) => c.id === id) ?? null;
     }
 
-    /**
-     * Resolve a character's avatar: the single `icon` image file inside its
-     * folder (`characters/<id>/icon.<ext>`), as an app-relative path for the
-     * static server. Null when the folder has no icon file.
-     */
     public resolveImage(id: string): string | null {
         let entries;
         try {
@@ -91,16 +83,10 @@ export class CharacterRegistry {
         return `characters/${id}/${icon}`.replace(/\\/g, '/');
     }
 
-    /** The character's voices.json, relative to the app dir. */
     public voicesFile(character: CharacterInfo): string {
         return `characters/${character.id}/${VOICES_FILE}`;
     }
 
-    /**
-     * The voice the TTS server will use for this character: the first voice
-     * declared in the folder's voices.json (the server treats it as the
-     * default too). Null when the file is missing or unreadable.
-     */
     public firstVoice(id: string): string | null {
         const file = path.join(this.root, id, VOICES_FILE);
         if (!existsSync(file)) {

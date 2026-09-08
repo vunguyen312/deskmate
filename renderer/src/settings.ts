@@ -100,8 +100,7 @@ function showStatus(el: HTMLSpanElement, message: string, error = false): void {
 }
 
 function refreshVoiceSettings(config: AppConfig): void {
-    // The stored language may predate the option list; fall back to the
-    // TTS-side name, then to the first option.
+
     const storedLang =
         LANGUAGE_OPTIONS.find((o) => o.stt === config.stt.language) ??
         LANGUAGE_OPTIONS.find((o) => o.tts === config.tts.language) ??
@@ -141,11 +140,6 @@ function refreshPetSettings(config: AppConfig): void {
     petHeightInput.value = String(config.window.height);
 }
 
-/**
- * Memory state for the active character, fetched from the main process.
- * While the embedding model is still loading (or after a failure) the
- * count line reflects readiness instead of a number.
- */
 async function refreshMemoryStatus(enabled: boolean): Promise<void> {
     const status = await window.api.getMemoryStatus();
     if (!enabled) {
@@ -169,7 +163,6 @@ function refreshMemorySettings(config: AppConfig): void {
     void refreshMemoryStatus(config.memory.enabled);
 }
 
-/** Parse an integer input and range-check it; throws with a UI-ready message. */
 function readInt(
     el: HTMLInputElement,
     min: number,
@@ -183,7 +176,6 @@ function readInt(
     return value;
 }
 
-/** Parse a decimal input and range-check it; throws with a UI-ready message. */
 function readNumber(
     el: HTMLInputElement,
     min: number,
@@ -315,8 +307,6 @@ async function main(): Promise<void> {
         }
     });
 
-    // Re-list after the user drops a character folder in the file manager
-    // and comes back to this window.
     window.addEventListener('focus', () => {
         void renderCharacters();
     });

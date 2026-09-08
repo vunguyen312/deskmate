@@ -6,7 +6,6 @@ export class SettingsWindow {
 
     constructor(private readonly port: number) {}
 
-    /** Show the settings window, creating it lazily on first use. */
     public open(): void {
         if (this.win && !this.win.isDestroyed()) {
             this.win.focus();

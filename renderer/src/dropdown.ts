@@ -1,9 +1,4 @@
-/**
- * Custom dropdown replacing native <select>. Native select popups are a
- * Chromium/Electron-on-Linux mess (blinking, closing on focus loss), and the
- * popup is a separate native surface the page cannot even observe, so this
- * renders the list in the DOM where open/close/select behavior is ours.
- */
+
 export interface DropdownOption<T> {
     value: T;
     label: string;
@@ -89,9 +84,6 @@ export class Dropdown<T> {
             }
         });
 
-        // Clicking anywhere outside closes the menu. Both pointerdown and
-        // click: pointerdown is what real input fires, click covers synthetic
-        // and assistive input paths. close() is idempotent.
         const closeOnOutside = (e: Event) => {
             if (!this.container.contains(e.target as Node)) {
                 this.close();
@@ -109,7 +101,6 @@ export class Dropdown<T> {
         return this.value;
     }
 
-    /** Replace the option list and select `current` (or the first option). */
     public setOptions(
         options: ReadonlyArray<DropdownOption<T>>,
         current: T,

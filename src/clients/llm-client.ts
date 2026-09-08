@@ -17,7 +17,7 @@ export class LlmClient {
         const base = config.baseUrl.replace(/\/$/, '');
         this.llm = new ChatOpenAI({
             model: config.model,
-            // llama.cpp ignores auth; the SDK only needs a non-empty value.
+
             apiKey: 'not-needed',
             temperature: config.temperature,
             maxTokens: config.maxTokens,

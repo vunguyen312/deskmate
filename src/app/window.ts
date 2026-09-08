@@ -56,13 +56,6 @@ export class PetWindow {
         }
     }
 
-    /**
-     * Apply new dimensions, e.g. right after a settings save.
-     *
-     * Uses setBounds (not setSize): on X11 a `resizable: false` window's WM
-     * size hints stick at the largest size ever set, so setSize can grow the
-     * window but silently refuses to shrink it. setBounds works both ways.
-     */
     public apply(config: WindowConfig): void {
         if (!this.browserWindow || this.browserWindow.isDestroyed()) {
             return;
@@ -78,13 +71,13 @@ export class PetWindow {
 
     private registerDragIpc(): void {
         ipcMain.on(CHANNELS.windowDragStart, () => {
-            
+
         });
         ipcMain.on(CHANNELS.windowDragMoveTo, (_e, x: number, y: number) => {
             this.moveTo(x, y);
         });
         ipcMain.on(CHANNELS.windowDragEnd, () => {
-            
+
         });
         ipcMain.handle(CHANNELS.getWindowPosition, () => {
             if (!this.browserWindow || this.browserWindow.isDestroyed()) {
@@ -95,14 +88,6 @@ export class PetWindow {
         });
     }
 
-    /**
-     * Absolute move: the renderer computes the target (anchor + cursor
-     * displacement) so repeated or queued messages converge on the same
-     * position instead of accumulating. Incremental moves against the window's
-     * own position feed back at speed — the lag between setPosition and the
-     * next event's coordinates makes the window overshoot and oscillate
-     * ("shake") on compositors with async moves (WSLg).
-     */
     private moveTo(x: number, y: number): void {
         if (!this.browserWindow || this.browserWindow.isDestroyed()) {
             return;

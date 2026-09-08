@@ -10,7 +10,6 @@ export class Config {
         this.data = JSON.parse(readFileSync(filePath, 'utf8')) as AppConfig;
     }
 
-    /** Persist the in-memory config to disk (atomic write via temp + rename). */
     public save(): void {
         const tmp = `${this.filePath}.tmp`;
         writeFileSync(tmp, `${JSON.stringify(this.data, null, 2)}\n`, 'utf8');

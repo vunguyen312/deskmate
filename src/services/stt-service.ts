@@ -150,7 +150,7 @@ export class SttService extends ChildService {
                     return c;
                 }
             } catch {
-                // skip unreadable candidate
+
             }
         }
         return null;

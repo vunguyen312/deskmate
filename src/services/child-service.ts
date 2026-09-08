@@ -22,7 +22,6 @@ export abstract class ChildService {
     private settle!: () => void;
     private settledOnce = false;
 
-    
     public readonly settled: Promise<void> = new Promise((resolve) => {
         this.settle = resolve;
     });
@@ -34,19 +33,18 @@ export abstract class ChildService {
         protected readonly spawnEnabled: boolean,
     ) {}
 
-    
     protected abstract buildSpawn(): SpawnSpec | null;
-    
+
     protected abstract probe(): Promise<ProbeState>;
-    
+
     protected abstract manualStartMessage(): string;
     protected abstract spawnFailedMessage(err: Error): string;
-    
+
     protected handleReady(): void {}
     protected warning(): { afterMs: number; message: string } | null {
         return null;
     }
-    
+
     protected onSpawned(_child: ChildProcess): void {}
 
     public async ensureStarted(): Promise<void> {
@@ -80,11 +78,6 @@ export abstract class ChildService {
         this.child = null;
     }
 
-    /**
-     * Stop the service, wait for the port to actually free up (the old
-     * process may take a moment to die), then start it again with the
-     * current configuration. Used by settings changes that need a respawn.
-     */
     public async restart(): Promise<void> {
         this.stop();
         for (let i = 0; i < 45; i++) {
@@ -145,15 +138,11 @@ export abstract class ChildService {
         }, POLL_INTERVAL_MS);
     }
 
-    
-    
-    
     private async pollOnce(startedAt: number): Promise<void> {
         if (!this.polling) {
-            return; 
+            return;
         }
-        
-        
+
         if (this.spawnAttempted && this.child === null) {
             this.stopPolling();
             this.markSettled();
@@ -161,7 +150,7 @@ export abstract class ChildService {
         }
         const state = await this.probe();
         if (!this.polling) {
-            return; 
+            return;
         }
         if (state === 'up') {
             this.stopPolling();
@@ -185,7 +174,6 @@ export abstract class ChildService {
         }
     }
 
-    
     protected markSettled(): void {
         if (this.settledOnce) {
             return;

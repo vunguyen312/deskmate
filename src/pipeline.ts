@@ -11,7 +11,6 @@ import { servicePort } from './utils/urls';
 
 const DEFAULT_HISTORY_CAP = 20;
 
-/** Anything that can receive renderer-bound IPC messages. */
 export interface WindowTarget {
     send(channel: string, ...args: unknown[]): void;
 }
@@ -28,7 +27,7 @@ export class ConversationPipeline {
             window: WindowTarget;
             config: AppConfig;
             historyCap?: number;
-            /** Long-term memory; null/omitted disables it. */
+
             memory?: MemoryService;
         },
     ) {}
@@ -51,7 +50,7 @@ export class ConversationPipeline {
             const text = await stt.transcribe(audio);
             if (!text) {
                 console.log('[voice-box] empty transcription, skipping');
-                window.send(CHANNELS.ttsEnd); 
+                window.send(CHANNELS.ttsEnd);
 
                 return;
             }

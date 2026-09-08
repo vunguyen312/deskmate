@@ -36,7 +36,6 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 const config = new Config(path.join(APP_DIR, 'config.json'));
 const characters = new CharacterRegistry();
 
-/** Absolute-path lookup for a binary, independent of the launcher's PATH. */
 function resolveBinary(name: string): string | null {
     const candidates = ['/usr/bin', '/bin', '/usr/local/bin', '/opt/homebrew/bin'];
     for (const dir of candidates) {
@@ -57,19 +56,11 @@ function resolveBinary(name: string): string | null {
     return null;
 }
 
-/**
- * Open a directory in the platform's file manager. shell.openPath shells out
- * to xdg-open on Linux, which is frequently missing or outside the launcher's
- * PATH (WSL has neither) — spawn an opener with an absolute path instead.
- * A spawned opener counts as success unless it errors out; Explorer returns
- * exit code 1 even when it opens fine, so exit codes are not consulted.
- */
 function openFolder(dir: string, toast: (msg: string) => void): void {
     type Attempt = { bin: string; args: () => string[] | null };
     const attempts: Attempt[] = [];
     if (process.platform === 'linux') {
-        // Windows Explorer through WSL interop (UNC path) — the reliable
-        // opener on WSL2.
+
         attempts.push({
             bin: 'explorer.exe',
             args: () => {
@@ -91,8 +82,7 @@ function openFolder(dir: string, toast: (msg: string) => void): void {
 
     const tryNext = (index: number): void => {
         if (index >= attempts.length) {
-            // Last resort: Electron's native opener (works on win32/darwin,
-            // and on Linux when xdg-open happens to be on PATH).
+
             void shell.openPath(dir).then((err) => {
                 if (err) {
                     console.error('[voice-box] open folder:', err);
@@ -133,14 +123,6 @@ function openFolder(dir: string, toast: (msg: string) => void): void {
     tryNext(0);
 }
 
-/**
- * Overlay a character's persona onto the effective config. Mutates in place so
- * the services and clients holding references to `config.data.llm/tts/stt`
- * pick the change up without being reconstructed. Only the persona
- * (`systemPrompt`) and voice are character-specific: LLM settings, language,
- * and the TTS model are app-level settings (config.json) and are left
- * untouched.
- */
 function applyCharacter(cfg: AppConfig, character: CharacterInfo): void {
     cfg.character = character.id;
     cfg.image = characters.resolveImage(character.id) ?? undefined;
@@ -154,7 +136,6 @@ function applyCharacter(cfg: AppConfig, character: CharacterInfo): void {
     }
 }
 
-// Adopt the configured character; fall back to the first available one.
 {
     const active = characters.get(config.data.character) ?? characters.list()[0];
     if (active) {
@@ -175,9 +156,7 @@ let services: ChildService[] = [];
 app.whenReady().then(async () => {
     const port = await new StaticServer(APP_DIR).start();
     console.log(`[voice-box] static server on 127.0.0.1:${port}`);
-    // The only permission the app needs is the microphone (Silero VAD in the
-    // pet window). Grant 'media' to our own local pages alone and deny every
-    // other permission to every origin.
+
     const isLocalOrigin = (wc: Electron.WebContents | null): boolean =>
         wc !== null && wc.getURL().startsWith(`http://127.0.0.1:${port}`);
     session.defaultSession.setPermissionRequestHandler(
@@ -188,8 +167,7 @@ app.whenReady().then(async () => {
     session.defaultSession.setPermissionCheckHandler(
         (wc, permission) => permission === 'media' && isLocalOrigin(wc),
     );
-    // First run (or config predating the captions window): default to the
-    // full primary display work area so subtitles span the screen by default.
+
     if (!config.data.captions) {
         const wa = screen.getPrimaryDisplay().workArea;
         config.data.captions = {
@@ -202,11 +180,11 @@ app.whenReady().then(async () => {
         };
         config.save();
     } else if (config.data.captions.enabled === undefined) {
-        // Configs written before the toggle existed: keep captions shown.
+
         config.data.captions.enabled = true;
         config.save();
     }
-    // Configs predating long-term memory: enable it with the defaults.
+
     if (!config.data.memory) {
         config.data.memory = { enabled: true, topK: 3, maxEntries: 500 };
         config.save();
@@ -217,10 +195,6 @@ app.whenReady().then(async () => {
     captionsWindow.create();
     const settingsWindow = new SettingsWindow(port);
 
-    // Route caption/pipeline events to every window that shows them; toasts
-    // stay on the pet window so errors do not plaster the whole screen.
-    // The pipeline ends every utterance (reply, skip, or error) with ttsEnd,
-    // so it is the per-utterance reset point for the ttsStart flag below.
     let ttsFirstChunk = true;
     const broadcast: WindowTarget = {
         send(channel: string, ...args: unknown[]): void {
@@ -234,9 +208,6 @@ app.whenReady().then(async () => {
         },
     };
 
-    // The PCM chunk buffer is transferred to the pet renderer, so the
-    // captions window gets a lightweight "playback started" signal on the
-    // first chunk of each reply instead.
     const ttsClient = new TtsClient(
         config.data.tts,
         (f32) => {
@@ -278,9 +249,7 @@ app.whenReady().then(async () => {
     ipcMain.handle(CHANNELS.appReadyQuery, () => {
         return appReady;
     });
-    
-    
-    
+
     void Promise.all(services.map((s) => s.settled)).then(() => {
         appReady = true;
         console.log('[voice-box] services settled; app ready');
@@ -377,10 +346,7 @@ app.whenReady().then(async () => {
             ) {
                 throw new Error('invalid memory payload');
             }
-            // App-level settings: persist in config.json, independent of the
-            // active character. Language is applied per request by the
-            // clients; only a TTS model or LLM model/GPU change needs a
-            // server restart.
+
             const prevTtsModel = config.data.tts.model;
             const prevLlmModel = config.data.llm.model;
             const prevGpuLayers = config.data.llm.gpuLayers;
@@ -454,8 +420,7 @@ app.whenReady().then(async () => {
                 config.data.tts.language,
             ].join('|');
         const prevTtsKey = ttsKey();
-        // LLM settings are app-level, so switching characters never touches
-        // llama-server — only the voice (and avatar) can change.
+
         applyCharacter(config.data, next);
         config.save();
         memory.switchCharacter(next.id);

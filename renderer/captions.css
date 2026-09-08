@@ -1,11 +1,3 @@
-html,
-body {
-  background: transparent;
-  margin: 0;
-  overflow: hidden;
-}
-
-/* The window itself is click-through; this container is only for layout. */
 #captions {
   position: fixed;
   left: 0;
@@ -29,8 +21,6 @@ body {
   max-width: 100%;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
-  /* Hard outline scales with the font; the glow keeps it readable over
-     bright content without a background box. */
   text-shadow:
     -2px -2px 0 #000,
     2px -2px 0 #000,

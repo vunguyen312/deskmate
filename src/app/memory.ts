@@ -10,12 +10,6 @@ import type { MemoryConfig, MemoryStatus } from '../../shared/contract';
 import { APP_DIR, MODELS_DIR } from '../utils/paths';
 import { errorMessage } from '../utils/errors';
 
-/**
- * Long-term memory backed by a local vector store (LangChain
- * `MemoryVectorStore` + `VectorStoreRetrieverMemory`), persisted as one JSON
- * file per character under `memory/`. Utterances are embedded on-device with
- * transformers.js (MiniLM), so nothing leaves the machine.
- */
 export const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
 const SAVE_DEBOUNCE_MS = 500;
 
@@ -29,7 +23,6 @@ interface MemoryFile {
     }>;
 }
 
-/** Local embeddings over the transformers.js feature-extraction pipeline. */
 class MiniLmEmbeddings implements EmbeddingsInterface {
     constructor(private readonly pipe: FeatureExtractionPipeline) {}
 
@@ -59,8 +52,7 @@ export class MemoryService {
     private filePath: string;
     private saveTimer: ReturnType<typeof setTimeout> | undefined = undefined;
     private dirty = false;
-    /** The exchange saved most recently; excluded from retrieval so the
-     * previous turn (already in short-term history) is not echoed back. */
+
     private lastSavedText: string | null = null;
 
     constructor(
@@ -71,12 +63,10 @@ export class MemoryService {
         this.filePath = path.join(APP_DIR, 'memory', `${characterId}.json`);
     }
 
-    /** Kick off model load + store restore; never blocks startup. */
     public start(): void {
         this.initPromise = this.initSafe();
     }
 
-    /** Apply settings changes (enabled/topK/maxEntries) without restart. */
     public applyConfig(config: MemoryConfig): void {
         const wasEnabled = this.config.enabled;
         const prevTopK = this.config.topK;
@@ -96,7 +86,6 @@ export class MemoryService {
         }
     }
 
-    /** Point memory at another character's store (character switch). */
     public switchCharacter(characterId: string): void {
         this.flush();
         this.filePath = path.join(APP_DIR, 'memory', `${characterId}.json`);
@@ -105,10 +94,6 @@ export class MemoryService {
         this.initPromise = this.initSafe();
     }
 
-    /**
-     * Relevant past exchanges for `input`, as plain text (`input: …` /
-     * `output: …` lines), or null when memory is off or nothing matches.
-     */
     public async load(input: string): Promise<string | null> {
         if (!this.config.enabled || !(await this.ensureReady())) {
             return null;
@@ -126,7 +111,6 @@ export class MemoryService {
         }
     }
 
-    /** Store one exchange (`input` / `output`) for later retrieval. */
     public async save(input: string, output: string): Promise<void> {
         if (!this.config.enabled || !(await this.ensureReady())) {
             return;
@@ -146,7 +130,6 @@ export class MemoryService {
         }
     }
 
-    /** Delete all stored memories for the active character. */
     public clear(): void {
         if (this.store) {
             this.store.memoryVectors = [];
@@ -197,8 +180,7 @@ export class MemoryService {
             return;
         }
         if (!this.pipe) {
-            // Keep the one-time MiniLM download out of node_modules so it
-            // survives reinstalls (models/ is gitignored).
+
             env.cacheDir = path.join(MODELS_DIR, 'embeddings');
             this.pipe = await pipeline('feature-extraction', EMBEDDING_MODEL);
             this.embeddings = new MiniLmEmbeddings(this.pipe);
