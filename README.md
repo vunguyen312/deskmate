@@ -1,242 +1,190 @@
-# Voice Box
+<p align="center">
+  <img src="assets/deskmate.webp" width="160" alt="Deskmate" />
+</p>
 
-An always-listening Electron companion that lives as a small floating PNG on top of
-everything. It listens continuously (Silero VAD), transcribes locally (whisper.cpp),
-runs the text through an LLM (llama.cpp, fully local), and speaks the
-reply with the repo's faster-qwen3-tts voice clone, brightening the image while
-it talks. Your words and the reply are shown as subtitles in a separate transparent,
-click-through captions window that can span the whole screen (white text with a black
-outline, no background), with three bouncing dots while the LLM has not replied
-with audio yet. No title bar, no buttons — the image is the app. Drag it around by its face,
-right-click (or Ctrl+Q) to quit.
+# Deskmate
 
-Characters live in `characters/` — each folder is a self-contained companion (icon,
-reference voice, persona prompt). The app ships with `characters/momo/`;
-pick another from the Settings → Characters tab. The **Open folder** button there opens
-`characters/` in your file manager — drop a new folder in and it appears in the list when
-the settings window regains focus (no restart).
+<p align="center">
+    <img src="https://img.shields.io/badge/Electron-Enabled-47848F?logo=electron&logoColor=white" />
+    <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=TypeScript&logoColor=white" />
+    <img src="https://img.shields.io/badge/whisper.cpp-STT-9cf" />
+    <img src="https://img.shields.io/badge/llama.cpp-LLM-blue" />
+    <img src="https://img.shields.io/badge/faster--qwen3--tts-voice%20clone-critical" />
+    <img src="https://img.shields.io/badge/privacy-100%25%20local-brightgreen" />
+</p>
+
+<p align="center">
+  <b> An always-listening desktop companion powered entirely by local
+  models. </b>
+</p>
+
+------------------------------------------------------------------------
+
+## Table of Contents
+
+-   [About The Project](#about-the-project)
+-   [Features](#features)
+-   [Tech Stack](#tech-stack)
+-   [Installation](#installation)
+-   [Usage](#usage)
+-   [Characters](#characters)
+-   [Troubleshooting](#troubleshooting)
+-   [Contributing](#contributing)
+
+------------------------------------------------------------------------
+
+## About The Project
+
+**Deskmate** is an always-listening desktop companion built with
+**Electron**. It lives as a small floating PNG on top of everything, with no
+title bar and no buttons. Click its face once to start the mic, then just
+talk: it hears you (Silero VAD), transcribes locally (whisper.cpp), thinks
+(llama.cpp), and answers out loud in your character's cloned voice
+(faster-qwen3-tts), brightening the image while it speaks. The conversation
+shows up as subtitles in a separate transparent, click-through window that can
+span the whole screen.
+
+A character is a folder: icon, reference voice, and persona. The repo ships
+with `momo` and `amadeus`; drop a new folder into `characters/` and it appears
+in Settings.
+
+Everything runs on your machine. No cloud, no API keys.
+
+This project is ideal for:
+
+-   Desktop pets and ambient companions that talk back
+-   Local-first voice AI that runs fully offline
+-   Voice-pipeline experiments (VAD → STT → LLM → TTS as swappable local
+    services)
+
+------------------------------------------------------------------------
+
+## Features
+
+-   Always listening (Silero VAD)
+-   Local speech-to-text (whisper.cpp, Japanese by default)
+-   Local brain (llama.cpp with a 2B Qwen3.5 model, GPU-offloaded)
+-   Cloned-voice replies (faster-qwen3-tts)
+-   Subtitles anywhere (transparent click-through captions with bouncing dots)
+-   Drop-in characters, no restart needed
+-   Long-term memory (per-character vector store, memories injected into every
+    prompt)
+-   Self-managing services (starts or reuses whisper-server, llama-server, and
+    the TTS server)
+
+------------------------------------------------------------------------
+
+## Tech Stack
+
+-   Electron + Node.js + TypeScript
+-   Silero VAD (`@ricky0123/vad-web`)
+-   whisper.cpp
+-   llama.cpp
+-   faster-qwen3-tts
+-   LangChain.js + transformers.js (memory)
+
+------------------------------------------------------------------------
+
+## Installation
+
+### 1. Clone the Repository
 
 ```
-mic ──▶ VAD (renderer, @ricky0123/vad-web) ──▶ dist/main.js ──▶ STT (whisper.cpp, :8002)
-                                                              │
-                                                              ▼
-                                                     LLM (llama.cpp :8081)
-                                                              │
-                                                              ▼
-        image brightens ◀── playback (renderer) ◀── TTS (faster-qwen3-tts, :8001)
-```
-
-## Prerequisites
-
-- Node.js (for npm/Electron).
-- The GPU venv (`.venv/`) with the TTS dependencies already installed.
-- Python services run from the `voice/` Python project (the venv lives at the repo root):
-  - The TTS server (`voice/server/openai_server.py`) uses `faster-qwen3-tts`; nothing
-    in voice-box needs CUDA 12 packages anymore — the whole stack is CUDA 13.
-- whisper.cpp's `whisper-server`, found on `PATH`, `~/.local/bin`, or
-  `voice-box/vendor/whisper/`. Either drop a prebuilt release from
-  github.com/ggml-org/whisper.cpp/releases there, or build one with CUDA support
-  (this repo's `voice-box/vendor/whisper/` ships a CUDA build):
-
-  ```sh
-  git clone --depth 1 --branch v1.9.2 https://github.com/ggerganov/whisper.cpp /tmp/whisper.cpp
-  cmake -B /tmp/whisper.cpp/build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=86 \
-        -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_FLAGS="-Xcompiler=-U_GNU_SOURCE"
-  cmake --build /tmp/whisper.cpp/build --target whisper-server -j 8
-  # then copy build/bin/whisper-server + build/bin/libwhisper.so.1 + build/bin/libggml*.so.0
-  # flat into voice-box/vendor/whisper/ (only the soname files are needed at runtime;
-  # skip the unversioned and fully-versioned copies — the loader never uses them)
-  ```
-
-  > On glibc ≥ 2.41 (Ubuntu 26.04+), CUDA ≥ 13.2 headers are required — CUDA
-  > 13.1's math declarations conflict with glibc's C23 `rsqrt` when compiling
-  > with `_GNU_SOURCE` (which nvcc defines implicitly). With CUDA 13.1 the
-  > build works if the nvcc host pass drops `_GNU_SOURCE`, which the
-  > `-DCMAKE_CUDA_FLAGS="-Xcompiler=-U_GNU_SOURCE"` above does (verified on
-  > Ubuntu 26.04, glibc 2.43, CUDA 13.1).
-
-  The multilingual model named by `config.stt.model` must already be installed at
-  `voice-box/models/ggml-small.bin` (`ggml-<model>.bin` for other sizes) — the app
-  never downloads it. Fetch it once with:
-
-  ```sh
-  curl -L -o voice-box/models/ggml-small.bin \
-    https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
-  ```
-
-- llama.cpp's `llama-server`, found on `PATH`, `~/.local/bin`, or
-  `voice-box/vendor/llama/`. Either drop a prebuilt release from
-  github.com/ggml-org/llama.cpp/releases there, or build one with CUDA support
-  (this repo's `voice-box/vendor/llama/` ships a CUDA build):
-
-  ```sh
-  git clone --depth 1 --branch b10275 https://github.com/ggml-org/llama.cpp /tmp/llama.cpp
-  cmake -B /tmp/llama.cpp/build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=86 \
-        -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF -DCMAKE_CUDA_FLAGS="-Xcompiler=-U_GNU_SOURCE"
-  cmake --build /tmp/llama.cpp/build --target llama-server -j 8
-  # then copy build/bin/llama-server + build/bin/libllama-server-impl.so + build/bin/libllama.so.0
-  # + build/bin/libllama-common.so.0 + build/bin/libmtmd.so.0 + build/bin/libggml*.so.0
-  # flat into voice-box/vendor/llama/ (only the soname files are needed at runtime;
-  # skip the unversioned and fully-versioned copies — the loader never uses them)
-  ```
-
-  > On glibc ≥ 2.41 (Ubuntu 26.04+), CUDA ≥ 13.2 headers are required — CUDA
-  > 13.1's math declarations conflict with glibc's C23 `rsqrt` when compiling
-  > with `_GNU_SOURCE` (which nvcc defines implicitly). With CUDA 13.1 the
-  > build works if the nvcc host pass drops `_GNU_SOURCE`, which the
-  > `-DCMAKE_CUDA_FLAGS="-Xcompiler=-U_GNU_SOURCE"` above does (verified on
-  > Ubuntu 26.04, glibc 2.43, CUDA 13.1).
-
-  The GGUF named by `config.llm.model` must already be installed at
-  `voice-box/models/<base>-<quant>.gguf` — the app never downloads it.
-
-  > Thinking models (qwen3, qwen3.5): the shipped config keeps reasoning off
-  > (`llm.think: false`) for fast replies; `llm.frequencyPenalty`/
-  > `llm.presencePenalty` suppress the repetition loops small quantized models
-  > fall into. Enabling `llm.think: true` makes a 2B model reason verbosely —
-  > replies cost ~2.5–3.5k tokens (~5–12s on a 3080-class GPU) — and
-  > `llm.maxTokens` must stay high, or the model spends the whole budget
-  > thinking and returns an empty reply.
-
-  Everything stays on your machine: no cloud endpoint, no API key.
-
-## Run
-
-```sh
+git clone https://github.com/vunguyen312/voice-box.git
 cd voice-box
-npm install
-npm start        # builds the renderer bundle, then launches Electron
 ```
 
-The app manages its own services: it starts the STT service (whisper-server, port
-from `stt.url`), the TTS server (`voice/server/openai_server.py` with the active
-character's `voices.json`, port from `tts.url`), and `llama-server` (bound to
-`llm.baseUrl`, when that host is localhost) — but only if they are not already
-running; your own instances are detected and reused. If a service is already up on
-its port, the app just talks to it. llama-server boots in ~1s and loads the 2B model
-in a few seconds (unlike ollama). First launches are slow by design: the TTS model
-takes ~45s to load (a toast shows progress; the TTS server captures its CUDA graphs
-at load, so the first reply is already fast), the STT model takes a few seconds to
-load. Set `llm.spawn`/`tts.spawn` to `false` to disable auto-starting.
+### 2. Install Dependencies
 
-1. Click anywhere on the box once (starts the microphone), then talk to it in Japanese.
+```
+npm install
+```
 
-## Configuration (`voice-box/config.json`)
+### 3. Set Up the Local Services
 
-`config.json` is the single source of app-level configuration — the app embeds no
-defaults. The `llm` section is app-level: characters carry no model choices and never
-override it. Language and the TTS model are purely app-level as well.
+Deskmate speaks to three local services and never starts them if yours are
+already running. Each binary is looked up on `PATH`, `~/.local/bin`, or
+`voice-box/vendor/<name>/`. If you do not have one, drop a prebuilt release
+from the upstream project there:
 
-## Characters (`voice-box/characters/`)
+-   **STT**: whisper.cpp's `whisper-server`
+-   **LLM**: llama.cpp's `llama-server`
+-   **TTS**: the Python server in `voice/` (see its README), run from the GPU
+    venv at the repo root
 
-Every folder under `characters/` is a character the app can run as. A folder needs:
+The models are never downloaded by the app. Install them once into `models/`:
+
+-   The STT model named by `config.stt.model`
+    (`voice-box/models/ggml-small.bin`):
+
+    ```sh
+    curl -L -o voice-box/models/ggml-small.bin \
+      https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
+    ```
+
+-   The GGUF named by `config.llm.model`
+    (`voice-box/models/<base>-<quant>.gguf`).
+
+------------------------------------------------------------------------
+
+## Usage
+
+```
+npm start     # builds the renderer bundle, then launches Electron
+```
+
+Once launched:
+
+1.  Click anywhere on the box once to start the microphone
+2.  Talk to it
+
+The first launch is slow by design: the TTS model takes ~45s to load (a toast
+shows progress) and the STT model a few seconds, while llama-server boots in
+~1s. Set `llm.spawn`/`tts.spawn` to `false` in `config.json` to disable
+auto-starting a service.
+
+------------------------------------------------------------------------
+
+## Characters
+
+Every folder under `characters/` is a companion the app can run as:
 
 | File | Meaning |
 |---|---|
-| `character.json` | Persona (schema below) |
-| `voices.json` | TTS voice config for the `server/openai_server.py` `--voices` flag; `ref_audio` paths are relative to the folder itself |
-| the reference audio + icon | e.g. `momo.wav`, `icon.png` |
+| `icon.png` | The pet image itself |
+| reference audio | The voice to clone (e.g. `momo.wav`) |
+| `character.json` | `name`, `description`, and `systemPrompt` persona (all but `name` optional) |
+| `voices.json` | TTS voice config; the first voice wins |
 
-`character.json` schema — every field except `name` is optional:
+Pick one in Settings → Characters, or use **Open folder** to drop a new
+character in. It appears as soon as the settings window regains focus. The
+avatar is the `icon` image (any format; scaled to the window). Language, the
+TTS model, and all LLM settings are app-level in `config.json`. Characters
+never override them.
 
-| Key | Meaning |
-|---|---|
-| `name` | Display name shown in the settings tab |
-| `description` | One-line blurb shown under the name |
-| `systemPrompt` | Persona prompt for the LLM (fallback: `config.json`'s `llm.systemPrompt`) |
-
-The avatar is the single `icon` image file inside the folder (`icon.png`,
-`icon.jpg`, … — any image extension; it is scaled to the window). The TTS voice
-is whatever the folder's `voices.json` declares — the first voice in the file
-wins (matching the TTS server's default). Language (STT/TTS), the TTS model, and
-all LLM settings (model, temperature, penalties, GPU layers, max tokens) are
-app-level in `config.json`, editable in Settings → Voice &amp; LLM, and are never
-overridden by a character. The captions window geometry and font size live in
-Settings → Captions.
-
-## Long-term memory
-
-Past exchanges are embedded on-device (transformers.js, `all-MiniLM-L6-v2`) and
-stored in a local LangChain vector store — one JSON file per character under
-`voice-box/memory/` (gitignored). Before each reply, the most relevant past
-exchanges (`memory.topK`) are retrieved and injected into the prompt as
-"Relevant memories", so the companion can recall things you told it earlier.
-Everything stays on your machine.
-
-- First use downloads the ~23 MB embedding model once into
-  `voice-box/models/embeddings/` (Hugging Face). It is never downloaded again;
-  delete that folder to re-download.
-- Each character gets its own store (`memory/<character>.json`); switching
-  characters switches stores.
-- Settings → Memory: on/off toggle, memories-per-reply (`topK`), per-character
-  cap (`maxEntries`), and **Clear memory** (deletes the active character's
-  store).
-- Memory survives restarts. The most recent exchange is never recalled from
-  memory — it is already in the session's short-term history.
-- If the embedding model cannot load (offline first run, disk error), memory
-  is disabled for the session with a toast; the rest of the app is unaffected.
-
-## Configuration keys
-
-`llm.*` below are app-level — editable in Settings → Voice &amp; LLM; only
-`llm.systemPrompt` can be overridden by the active character's
-`character.json`. `stt.language`, `tts.language` and `tts.model` are app-level
-too: characters never touch them.
-
-| Key | Default | Meaning |
-|---|---|---|
-| `character` | `"momo"` | Active character (a folder under `characters/`) |
-| `llm.baseUrl` | `http://127.0.0.1:8081` | llama-server base URL (llama.cpp's stock port is 8080; voice-box defaults to 8081 to avoid common collisions) |
-| `llm.model` | `"unsloth/Qwen3.5-2B-GGUF:Q4_K_S"` | `<repo>:<quant>` naming the pre-installed GGUF at `voice-box/models/<base>-<quant>.gguf` — no download, that file must exist |
-| `llm.systemPrompt` | モモ prompt | Persona; change to any language you want the replies in (the active character's `character.json` `systemPrompt` overrides it) |
-| `llm.maxTokens` / `llm.temperature` | `4096` / `0.7` | Generation knobs (qwen3.5's thinking needs ~2.5–3.5k tokens per reply — too low yields empty replies). `maxTokens` is app-level, editable in Settings → Voice &amp; LLM, and never overridden by characters |
-| `llm.think` | `false` | Thinking for qwen3.5 models (`chat_template_kwargs.enable_thinking`); `true` = reasoned replies, but slow on a 2B (~5–12s each) |
-| `llm.frequencyPenalty` / `llm.presencePenalty` | `0.5` / `0.3` | OpenAI-style repetition suppression (applies to answers and reasoning; keeps small models from looping) |
-| `llm.gpuLayers` | `99` | llama.cpp `-ngl` GPU offload; set `0` for CPU-only llama.cpp builds (llama.cpp falls back to CPU automatically when no GPU backend is present) |
-| `memory.enabled` | `true` | Long-term memory on/off (Settings → Memory) |
-| `memory.topK` | `3` | Number of relevant past exchanges injected into each prompt |
-| `memory.maxEntries` | `500` | Max stored exchanges per character; the oldest are dropped beyond this |
-| `tts.spawn` | `true` | Auto-start the TTS server (repo venv, active character's voice, port from `tts.url`) when it is not running |
-| `stt.url` | `http://127.0.0.1:8002` | STT service URL (port is also used for the auto-spawned server) |
-| `stt.model` | `"small"` | whisper.cpp model size (multilingual); maps to `voice-box/models/ggml-<model>.bin` |
-| `stt.language` | `"ja"` | Source language (`"ja"`, `"en"`, …; omit for auto-detect) |
-| `tts.url` | `http://127.0.0.1:8001` | TTS server URL |
-| `tts.voice` | `"momo"` | Voice name from the TTS `--voices` file |
-| `tts.voicesFile` | `"characters/momo/voices.json"` | `--voices` file passed to the TTS server, relative to `voice-box/` (set per character) |
-| `tts.responseFormat` | `"pcm"` | `"pcm"` (streamed) or `"wav"` |
-| `vad.threshold` | `0.5` | Silero VAD sensitivity (`positiveSpeechThreshold`) |
-| `window.width/height` | `300` | Pet window size in px (editable in Settings → Pet; the pet's position is set by dragging it) |
-| `captions.x/y/width/height` | primary display work area | Captions window geometry in screen px (editable in Settings → Captions; **Fill screen** snaps it to the work area). The window is transparent and click-through — clicks fall through to whatever is underneath |
-| `captions.fontSize` | `48` | Caption text size in px |
-| `debug.autoSendWav` | `""` | Absolute path to a WAV fed through the full pipeline on startup (dev, no mic needed) |
-
-Replace the `icon` file in `characters/<id>/` (any size; it is scaled to the
-window) — the file must be named `icon` (e.g. `icon.png`).
+------------------------------------------------------------------------
 
 ## Troubleshooting
 
-- A toast names whichever service is down and how to start it. Services are
-  auto-started on launch when their port is empty (`llm.spawn`/`tts.spawn`); the
-  toasts below only appear when auto-start is off or the launch itself failed:
-  - **STT**: `whisper-server -m voice-box/models/ggml-small.bin --port 8002` (or let the app spawn it).
-  - **TTS**: `.venv/bin/python voice/server/openai_server.py --voices characters/momo/voices.json --language Japanese --port 8001` (from `voice-box/`; the app uses the active character's `voices.json`).
-  - **LLM**: `llama-server` not found means llama.cpp isn't installed (see
-    Prerequisites); a failed spawn toasts the reason. The model file must exist at
-    `voice-box/models/<base>-<quant>.gguf` matching `llm.model` — the app never
-    downloads it; change `llm.model` only if you install a different GGUF.
-- **No speech detected**: click the box once to grant the microphone; VAD init retries on
-  the next click. In a WSL2 VM without an audio input there is no mic — use
-  `debug.autoSendWav` to exercise the full chain on any machine.
-- **Port conflicts**: change `stt.url`/`tts.url`/`llm.baseUrl` in `config.json` (the
-  spawned ports follow each service's URL; the STT spawn port follows `stt.url`).
-- **VAD model assets** load locally from `node_modules` (served by the app itself) — no
-  network needed after `npm install`.
+-   **Service not found.** The toast names it. `whisper-server` and
+    `llama-server` must be on `PATH` or in `voice-box/vendor/`.
+-   **Model not found.** Install the STT model and GGUF into `models/`,
+    matching `config.stt.model` and `config.llm.model`. The app never
+    downloads them.
+-   **No speech detected.** Click the box once to grant the microphone. In a
+    WSL2 VM with no audio input, use `debug.autoSendWav` to exercise the full
+    chain on any machine.
+-   **Port conflicts.** Change `stt.url`, `tts.url`, or `llm.baseUrl` in
+    `config.json`.
 
-## How the pieces talk
+------------------------------------------------------------------------
 
-- Renderer (VAD + playback) → `dist/preload.js` bridge → `dist/main.js` (all HTTP).
-- `speech-audio` IPC carries the 16 kHz Float32 utterance; main wraps it in a WAV header
-  (same layout as `server/openai_server.py:_wav_header`), posts it to the STT service,
-  asks the LLM, then streams the TTS PCM reply back as `tts-chunk` transferables while
-  the image stays bright. One utterance at a time: while a reply plays, further speech
-  is dropped.
+## Contributing
+
+Contributions are welcome.
+
+1.  Fork the repository
+2.  Create a new branch
+3.  Commit your changes
+4.  Push to your branch
+5.  Open a pull request
